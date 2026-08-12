@@ -7,26 +7,31 @@ from jinja2 import Environment, FileSystemLoader
 # Initialize Gemini Client using the official SDK
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Feeds Configuration
+# Expanded Categories for Year 11 Engagement
 FEEDS = [
     {
-        "category": "Regional & Local (Asia)",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg",  # CNA Insider YT
+        "category": "🇸🇬 Singapore & Asia",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg", # CNA Insider
         "is_video": True
     },
     {
-        "category": "Global Video News",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA",  # BBC News YT
+        "category": "🔬 Science & Future Tech",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q", # Kurzgesagt / Science
         "is_video": True
     },
     {
-        "category": "Global Politics & Society",
-        "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
-        "is_video": False
+        "category": "🌍 World & Politics",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA", # BBC News
+        "is_video": True
     },
     {
-        "category": "Science & Tech",
-        "url": "https://www.nature.com/nature.rss",
+        "category": "⚽ Sports & Culture",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCm2719vP8N9sZ33C-i05TzQ", # CNA Sport / Global Sport
+        "is_video": True
+    },
+    {
+        "category": "💡 Economics & Society",
+        "url": "http://feeds.bbci.co.uk/news/business/rss.xml",
         "is_video": False
     }
 ]

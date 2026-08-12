@@ -8,7 +8,6 @@ from google import genai
 from google.genai import types
 from jinja2 import Environment, FileSystemLoader
 
-# Initialize Gemini Client safely
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 FEEDS = [
@@ -102,9 +101,7 @@ def extract_image_url(entry, raw_summary):
     return None
 
 def generate_smart_fallback_prompts(title, summary):
-    """Topic-aware heuristic fallback engine."""
     text = f"{title} {summary}".lower()
-    
     if any(k in text for k in ["ai", "tech", "data", "digital", "algorithm", "cyber", "device"]):
         q1 = "How should regulatory bodies balance rapid technological innovation against ethics and public safety here?"
         q2 = "What long-term skills or adaptations will the future workforce need in response to this shift?"
@@ -120,7 +117,6 @@ def generate_smart_fallback_prompts(title, summary):
     else:
         q1 = "Who are the main stakeholders affected by this development, and how do their priorities conflict?"
         q2 = "If you were advising policy-makers on this issue, what immediate action would you recommend?"
-
     return [q1, q2]
 
 def generate_discussion_prompts(title, summary):
@@ -137,8 +133,8 @@ def generate_discussion_prompts(title, summary):
     - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
     """
     try:
-   response = client.models.generate_content(
-            model="gemini-2.5-flash",  # <--- Change gemini-1.5-flash to gemini-2.5-flash
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -155,7 +151,6 @@ def generate_discussion_prompts(title, summary):
         data = json.loads(response.text)
         print(f"✅ Gemini AI generated questions for: {title[:30]}...")
         return [data["question_1"], data["question_2"]]
-        
     except Exception as e:
         print(f"⚠️ Gemini API Error for '{title[:30]}...': {type(e).__name__} - {e}")
         return generate_smart_fallback_prompts(title, summary)

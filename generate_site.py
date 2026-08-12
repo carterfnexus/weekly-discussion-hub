@@ -1,28 +1,33 @@
 import os
 import re
+from pathlib import Path
 import feedparser
 from google import genai
 from google.genai import types
 from jinja2 import Environment, FileSystemLoader
 
-# Initialize Gemini Client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Standard YouTube Channel RSS feeds
+# Category Feeds
 FEEDS = [
     {
         "category": "🇸🇬 Singapore & Asia",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg",  # CNA
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg", # CNA
         "is_video": True
     },
     {
         "category": "🔬 Science & Tech",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q",  # Kurzgesagt
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q", # Kurzgesagt
         "is_video": True
     },
     {
         "category": "🌍 World News",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA",  # BBC News YT
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA", # BBC News YT
+        "is_video": True
+    },
+    {
+        "category": "⚽ Sports & Culture",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCNAf1k0yIjyGu3k9BwAg3lg", # Sky Sports
         "is_video": True
     },
     {
@@ -33,7 +38,6 @@ FEEDS = [
 ]
 
 def extract_youtube_id(entry):
-    """Extracts YouTube ID from feed entry structure."""
     if hasattr(entry, 'yt_videoid'):
         return entry.yt_videoid
     if hasattr(entry, 'link'):
@@ -43,17 +47,7 @@ def extract_youtube_id(entry):
     return None
 
 def generate_discussion_prompts(title, summary):
-    """Calls Gemini using Structured Outputs to guarantee clean discussion questions."""
-    prompt_text = f"""
-    You are an educator for 16-year-old Year 11 students in Singapore.
-    Analyze this news story:
-    Title: {title}
-    Summary: {summary}
-
-    Generate 2 engaging room discussion starters:
-    1. A real-world lens question (focusing on society, ethics, or policy).
-    2. A critical thinking question (focusing on global implications or TOK/knowledge evaluation).
-    """
+    prompt_text = f"Analyze for Year 11 Singapore students:\nTitle: {title}\nSummary: {summary}\nGenerate 2 concise room discussion starters."
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
@@ -74,9 +68,9 @@ def generate_discussion_prompts(title, summary):
         data = json.loads(response.text)
         return [data["question_1"], data["question_2"]]
     except Exception as e:
-        print(f"Error calling AI: {e}")
+        print(f"AI Call error: {e}")
         return [
-            f"What primary societal or policy trade-offs are highlighted in '{title}'?",
+            f"What primary societal trade-offs are highlighted in '{title}'?",
             "How might different global or local stakeholders view this development?"
         ]
 
@@ -87,11 +81,11 @@ def main():
         print(f"Fetching: {feed_info['category']}...")
         parsed = feedparser.parse(
             feed_info["url"], 
-            agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            request_headers={'User-Agent': 'Mozilla/5.0'}
         )
         
         if not parsed.entries:
-            print(f"Failed to fetch feed for {feed_info['category']}")
+            print(f"Feed failed: {feed_info['category']}")
             continue
             
         entry = parsed.entries[0]
@@ -100,11 +94,10 @@ def main():
         
         raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'No summary available.'))
         cleaned_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
-        cleaned_summary = (cleaned_summary[:250] + '...') if len(cleaned_summary) > 250 else cleaned_summary
+        cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
         
         video_id = extract_youtube_id(entry) if feed_info["is_video"] else None
         
-        print(f"Generating prompts for: {title} (Video ID: {video_id})")
         prompts = generate_discussion_prompts(title, cleaned_summary)
 
         processed_items.append({
@@ -116,15 +109,22 @@ def main():
             "prompts": prompts
         })
 
-    print("Rendering HTML template...")
-    env = Environment(loader=FileSystemLoader("templates"))
-    template = env.get_template("index_template.html")
+    # Robust path handling for templates
+    base_dir = Path(__file__).resolve().parent
+    templates_dir = base_dir / "templates"
+
+    env = Environment(loader=FileSystemLoader(str(templates_dir)))
+    
+    # Matches index_template.html or index.html inside the templates folder
+    template_name = "index_template.html" if (templates_dir / "index_template.html").exists() else "index.html"
+    template = env.get_template(template_name)
     output_html = template.render(items=processed_items)
 
-    with open("index.html", "w", encoding="utf-8") as f:
+    # Output directly to root index.html
+    with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         
-    print("Done! index.html generated successfully.")
+    print("Successfully generated index.html")
 
 if __name__ == "__main__":
     main()

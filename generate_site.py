@@ -138,7 +138,7 @@ def generate_discussion_prompts(title, summary):
     """
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-flash",  # <--- UPDATE THIS LINE
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",

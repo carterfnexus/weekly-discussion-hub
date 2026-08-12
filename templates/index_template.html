@@ -3,88 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Year 11 Weekly Discussion Hub</title>
+    <title>Year 11 Discussion Hub</title>
     <style>
         :root {
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #cbd5e1;
+            --bg: #090d16;
+            --card-bg: #151c2c;
             --accent: #38bdf8;
-            --border: #334155;
-            --badge-bg: #0284c7;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #1e293b;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg);
             color: var(--text-main);
             margin: 0;
             padding: 2rem 1rem;
-            line-height: 1.5;
         }
 
         header {
             text-align: center;
             max-width: 800px;
-            margin: 0 auto 2.5rem auto;
+            margin: 0 auto 3rem auto;
         }
 
         header h1 {
-            color: var(--accent);
-            font-size: 2.25rem;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
-            font-weight: 700;
+            font-weight: 800;
         }
 
         header p {
             color: var(--text-muted);
             font-size: 1.1rem;
-            margin: 0;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
-            max-width: 1200px;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 2rem;
+            max-width: 1300px;
             margin: 0 auto;
         }
 
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.25rem;
+            border-radius: 16px;
+            padding: 1.5rem;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .badge {
-            background-color: var(--badge-bg);
-            color: #ffffff;
-            padding: 0.25rem 0.6rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px var(--accent-glow);
+            border-color: #334155;
+        }
+
+        .category-badge {
+            display: inline-block;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: 700;
-            letter-spacing: 0.05em;
-            align-self: flex-start;
             margin-bottom: 0.75rem;
+            align-self: flex-start;
         }
 
-        .video-container {
+        h2 {
+            font-size: 1.25rem;
+            margin: 0 0 1rem 0;
+            line-height: 1.35;
+        }
+
+        h2 a {
+            color: var(--text-main);
+            text-decoration: none;
+        }
+
+        h2 a:hover {
+            color: var(--accent);
+        }
+
+        .video-wrapper {
             position: relative;
             padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
             height: 0;
-            margin: 0.5rem 0 1rem 0;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
+            margin-bottom: 1rem;
             background-color: #000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
 
-        .video-container iframe {
+        .video-wrapper iframe {
             position: absolute;
             top: 0;
             left: 0;
@@ -93,57 +115,41 @@
             border: 0;
         }
 
-        h2 {
-            font-size: 1.2rem;
-            margin: 0 0 0.5rem 0;
-            line-height: 1.35;
-        }
-
-        h2 a {
-            color: var(--text-main);
-            text-decoration: none;
-            transition: color 0.2s ease;
-        }
-
-        h2 a:hover {
-            color: var(--accent);
-        }
-
         p.summary {
             font-size: 0.925rem;
             color: var(--text-muted);
             margin-bottom: 1.25rem;
+            line-height: 1.5;
             flex-grow: 1;
         }
 
-        .prompts {
-            background-color: #0f172a;
-            border-left: 4px solid var(--accent);
-            padding: 0.85rem;
-            border-radius: 0 8px 8px 0;
-            margin-top: auto;
+        .prompts-box {
+            background-color: #0b0f19;
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid #1e293b;
         }
 
-        .prompts h3 {
+        .prompts-box h3 {
             margin: 0 0 0.5rem 0;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
+            letter-spacing: 0.08em;
             color: var(--accent);
-            letter-spacing: 0.05em;
         }
 
-        .prompts ul {
+        .prompts-box ul {
             margin: 0;
-            padding-left: 1.1rem;
+            padding-left: 1.2rem;
             font-size: 0.875rem;
-            color: var(--text-main);
+            color: #e2e8f0;
         }
 
-        .prompts li {
+        .prompts-box li {
             margin-bottom: 0.5rem;
         }
 
-        .prompts li:last-child {
+        .prompts-box li:last-child {
             margin-bottom: 0;
         }
     </style>
@@ -151,17 +157,19 @@
 <body>
 
     <header>
-        <h1>Year 11 Resource & Discussion Hub</h1>
-        <p>Explore current events, videos, and research stories for classroom discussion.</p>
+        <h1>Year 11 Discussion Hub</h1>
+        <p>Explore weekly stories, video reports, and classroom discussion starters</p>
     </header>
 
     <div class="grid">
         {% for item in items %}
         <div class="card">
-            <span class="badge">{{ item.category }}</span>
+            <span class="category-badge">{{ item.category }}</span>
             
+            <h2><a href="{{ item.link }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a></h2>
+
             {% if item.video_id %}
-            <div class="video-container">
+            <div class="video-wrapper">
                 <iframe 
                     src="https://www.youtube.com/embed/{{ item.video_id }}" 
                     title="{{ item.title }}"
@@ -171,11 +179,10 @@
             </div>
             {% endif %}
 
-            <h2><a href="{{ item.link }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a></h2>
             <p class="summary">{{ item.summary }}</p>
 
-            <div class="prompts">
-                <h3>Room Discussion Starters</h3>
+            <div class="prompts-box">
+                <h3>🗣️ Room Discussion Starters</h3>
                 <ul>
                     {% for prompt in item.prompts %}
                     <li>{{ prompt }}</li>

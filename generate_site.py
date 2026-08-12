@@ -137,8 +137,8 @@ def generate_discussion_prompts(title, summary):
     - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
     """
     try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",  # <--- UPDATE THIS LINE
+   response = client.models.generate_content(
+            model="gemini-2.5-flash",  # <--- Change gemini-1.5-flash to gemini-2.5-flash
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",

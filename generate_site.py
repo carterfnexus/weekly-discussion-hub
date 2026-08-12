@@ -2,31 +2,27 @@ import os
 import re
 import feedparser
 from google import genai
+from google.genai import types
 from jinja2 import Environment, FileSystemLoader
 
 # Initialize Gemini Client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Categories & Feeds Configuration
+# Standard YouTube Channel RSS feeds
 FEEDS = [
     {
         "category": "🇸🇬 Singapore & Asia",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg",  # CNA Insider
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg",  # CNA
         "is_video": True
     },
     {
-        "category": "🔬 Science & Future Tech",
+        "category": "🔬 Science & Tech",
         "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q",  # Kurzgesagt
         "is_video": True
     },
     {
-        "category": "🌍 World & Politics",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA",  # BBC News
-        "is_video": True
-    },
-    {
-        "category": "⚽ Sports & Culture",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCNAf1k0yIjyGu3k9BwAg3lg",  # Sky Sports News
+        "category": "🌍 World News",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA",  # BBC News YT
         "is_video": True
     },
     {
@@ -36,62 +32,66 @@ FEEDS = [
     }
 ]
 
-def extract_youtube_id(entry, url):
-    """Extracts YouTube ID from feed entry structure or link string."""
-    # Method 1: Look for YouTube element ID tag in entry
+def extract_youtube_id(entry):
+    """Extracts YouTube ID from feed entry structure."""
     if hasattr(entry, 'yt_videoid'):
         return entry.yt_videoid
-    
-    # Method 2: Regex check on link URL
-    match = re.search(r"(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})", url)
-    if match:
-        return match.group(1)
-        
+    if hasattr(entry, 'link'):
+        match = re.search(r"(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})", entry.link)
+        if match:
+            return match.group(1)
     return None
 
 def generate_discussion_prompts(title, summary):
+    """Calls Gemini using Structured Outputs to guarantee clean discussion questions."""
     prompt_text = f"""
-    You are an international school educator for 16-year-old Year 11 students in Singapore.
-    Analyze this news item:
+    You are an educator for 16-year-old Year 11 students in Singapore.
+    Analyze this news story:
     Title: {title}
     Summary: {summary}
 
-    Write 2 concise room discussion starters:
-    1. A real-world lens question (society, policy, or ethics).
-    2. A critical thinking question (TOK/knowledge questions or future implications).
-    
-    Format: Return ONLY two bullet points starting with '- '.
+    Generate 2 engaging room discussion starters:
+    1. A real-world lens question (focusing on society, ethics, or policy).
+    2. A critical thinking question (focusing on global implications or TOK/knowledge evaluation).
     """
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=prompt_text
+            contents=prompt_text,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema={
+                    "type": "OBJECT",
+                    "properties": {
+                        "question_1": {"type": "STRING"},
+                        "question_2": {"type": "STRING"}
+                    },
+                    "required": ["question_1", "question_2"]
+                }
+            )
         )
-        lines = response.text.strip().split("\n")
-        prompts = [line.lstrip("-* ").strip() for line in lines if line.strip().startswith(("-", "*"))]
-        
-        if len(prompts) >= 2:
-            return prompts[:2]
-        return [
-            "What are the primary societal or ethical trade-offs highlighted in this story?",
-            "How might this development impact different global or local communities?"
-        ]
+        import json
+        data = json.loads(response.text)
+        return [data["question_1"], data["question_2"]]
     except Exception as e:
         print(f"Error calling AI: {e}")
         return [
-            "What are the main societal or policy implications of this development?",
-            "How reliable are the perspectives presented in this story?"
+            f"What primary societal or policy trade-offs are highlighted in '{title}'?",
+            "How might different global or local stakeholders view this development?"
         ]
 
 def main():
     processed_items = []
 
     for feed_info in FEEDS:
-        print(f"Fetching feed: {feed_info['category']}...")
-        parsed = feedparser.parse(feed_info["url"])
+        print(f"Fetching: {feed_info['category']}...")
+        parsed = feedparser.parse(
+            feed_info["url"], 
+            agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
         
         if not parsed.entries:
-            print(f"Warning: Couldn't retrieve items for {feed_info['category']}")
+            print(f"Failed to fetch feed for {feed_info['category']}")
             continue
             
         entry = parsed.entries[0]
@@ -99,11 +99,12 @@ def main():
         link = entry.link
         
         raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'No summary available.'))
-        cleaned_summary = re.sub('<[^<]+?>', '', raw_summary)[:280] + "..."
+        cleaned_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
+        cleaned_summary = (cleaned_summary[:250] + '...') if len(cleaned_summary) > 250 else cleaned_summary
         
-        video_id = extract_youtube_id(entry, link) if feed_info["is_video"] else None
+        video_id = extract_youtube_id(entry) if feed_info["is_video"] else None
         
-        print(f"Processing story: {title} (Video ID: {video_id})")
+        print(f"Generating prompts for: {title} (Video ID: {video_id})")
         prompts = generate_discussion_prompts(title, cleaned_summary)
 
         processed_items.append({

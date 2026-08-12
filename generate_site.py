@@ -16,7 +16,7 @@ FEEDS = [
     # --- Youth & Classroom Current Affairs ---
     {
         "category": "📺 CNN 10 (Student News)",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCv63dklTisfCQ11MJU4092A",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCTOoRgpHTjAQPk6Ak70u-pA",
         "is_video": True
     },
     {
@@ -25,18 +25,18 @@ FEEDS = [
         "is_video": False
     },
     {
-        "category": "🎥 BTN - Behind the News",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsI2cR3R-K5Z1-Y1U_A3fBw",
-        "is_video": True
-    },
-    {
-        "category": "🎓 NYT Learning Network",
-        "url": "https://www.nytimes.com/services/xml/rss/nyt/Learning.xml",
+        "category": "🎓 BBC Education & Youth News",
+        "url": "https://feeds.bbci.co.uk/news/education/rss.xml",
         "is_video": False
     },
     {
-        "category": "🇺🇸 PBS NewsHour Classroom",
-        "url": "https://www.pbs.org/newshour/feeds/rss/classroom",
+        "category": "🎓 NYT Education",
+        "url": "https://rss.nytimes.com/services/xml/rss/nyt/Education.xml",
+        "is_video": False
+    },
+    {
+        "category": "🇺🇸 PBS NewsHour Headlines",
+        "url": "https://www.pbs.org/newshour/feeds/rss/headlines",
         "is_video": False
     },
 

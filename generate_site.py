@@ -106,24 +106,46 @@ def extract_image_url(entry, raw_summary):
 
     return None
 
+def generate_smart_fallback_prompts(title, summary):
+    """Smart keyword-driven fallback engine used ONLY if Gemini fails."""
+    text = f"{title} {summary}".lower()
+    
+    if any(k in text for k in ["ai", "tech", "data", "digital", "algorithm", "cyber", "device"]):
+        q1 = f"How should regulatory bodies balance rapid technological innovation against privacy and ethics here?"
+        q2 = "What long-term skills or adaptations will the future workforce need in response to this shift?"
+        
+    elif any(k in text for k in ["climate", "environment", "energy", "nature", "green", "pylon", "carbon"]):
+        q1 = f"What economic or societal trade-offs must local communities accept to support the environmental goals mentioned?"
+        q2 = "Is individual consumer behavior or government regulation more effective in addressing this issue?"
+        
+    elif any(k in text for k in ["economy", "bill", "price", "market", "cost", "business", "tax", "trade"]):
+        q1 = f"How might the financial changes discussed impact lower-income versus higher-income groups differently?"
+        q2 = "What broader economic risks or opportunities does this development create for the global market?"
+        
+    elif any(k in text for k in ["singapore", "asia", "local", "government", "policy"]):
+        q1 = f"How relevant are the issues raised in this story to Singapore's current social or policy landscape?"
+        q2 = "What proactive steps can local decision-makers take to manage this situation effectively?"
+        
+    else:
+        q1 = f"Who are the main stakeholders affected by this development, and how do their priorities conflict?"
+        q2 = f"If you were advising policy-makers on this issue, what immediate action would you recommend?"
+
+    return [q1, q2]
+
+
 def generate_discussion_prompts(title, summary):
+    """Primary AI Generator with Smart Fallback Protection."""
     prompt_text = f"""
     You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore.
 
-    Read and analyze this specific news story:
-    ARTICLE TITLE: {title}
-    ARTICLE SUMMARY: {summary}
+    Analyze this news story:
+    Title: {title}
+    Summary: {summary}
 
-    Task:
-    Generate 2 unique, highly insightful discussion starters based STRICTLY on the core themes, real-world consequences, or ethical dilemmas presented in THIS article.
-
-    Requirements:
-    - Do NOT use generic templates (e.g., do not ask "What are the trade-offs in [Title]?").
-    - Ask specific questions about the entities, decisions, technologies, or societal impacts mentioned in the text.
-    - Question 1: Focus on real-world impact, policy, or societal trade-offs specific to this story.
-    - Question 2: Focus on critical thinking, ethics, or future implications specific to this story.
-    - Vocabulary: Suitable for 16-year-old students (O-Level / IB MYP level).
-    - Length: 1-2 concise sentences per question.
+    Generate 2 unique, highly insightful room discussion starters based strictly on this specific story.
+    - Question 1: Focus on real-world policy, societal trade-offs, or ethical impact.
+    - Question 2: Focus on critical thinking, global perspectives, or future implications.
+    - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
     """
     try:
         response = client.models.generate_content(
@@ -144,13 +166,11 @@ def generate_discussion_prompts(title, summary):
         import json
         data = json.loads(response.text)
         return [data["question_1"], data["question_2"]]
+        
     except Exception as e:
-        print(f"⚠️ Gemini API Error for '{title}': {e}")
-        # Emergency backup if API fails or network drops
-        return [
-            "How might this development impact different groups in society over the next decade?",
-            "What ethical or practical challenges must leaders address when responding to this situation?"
-        ]
+        # Logs the Gemini error to GitHub Actions console while serving smart fallback prompts
+        print(f"⚠️ Gemini API bypassed for '{title[:30]}...': {e}")
+        return generate_smart_fallback_prompts(title, summary)
 
 def main():
     processed_items = []

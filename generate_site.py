@@ -108,19 +108,22 @@ def extract_image_url(entry, raw_summary):
 
 def generate_discussion_prompts(title, summary):
     prompt_text = f"""
-    You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore (O-Level / IB MYP level).
+    You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore.
 
-    Analyze this story:
-    Title: {title}
-    Summary: {summary}
+    Read and analyze this specific news story:
+    ARTICLE TITLE: {title}
+    ARTICLE SUMMARY: {summary}
 
-    Requirements for the 2 discussion starters:
-    - **Target Age/Grade**: Year 11 (Age 15–16). Questions must be age-appropriate, avoiding overly simplistic language or overly dense academic jargon.
-    - **Vocabulary**: Use clear, sophisticated, upper-secondary academic vocabulary (e.g., terms like "implications", "trade-offs", "ethical considerations", "stakeholders", "systemic impact").
-    - **Question 1 (Societal/Policy Focus)**: Focus on real-world impact, ethics, government policy, or social trade-offs.
-    - **Question 2 (Critical Thinking/TOK Focus)**: Focus on global perspectives, evaluating sources/perspectives, or long-term consequences.
-    - **Tone**: Engaging, thought-provoking, and unbiased. Avoid sensationalism.
-    - **Length**: Keep each question to 1–2 concise sentences max.
+    Task:
+    Generate 2 unique, highly insightful discussion starters based STRICTLY on the core themes, real-world consequences, or ethical dilemmas presented in THIS article.
+
+    Requirements:
+    - Do NOT use generic templates (e.g., do not ask "What are the trade-offs in [Title]?").
+    - Ask specific questions about the entities, decisions, technologies, or societal impacts mentioned in the text.
+    - Question 1: Focus on real-world impact, policy, or societal trade-offs specific to this story.
+    - Question 2: Focus on critical thinking, ethics, or future implications specific to this story.
+    - Vocabulary: Suitable for 16-year-old students (O-Level / IB MYP level).
+    - Length: 1-2 concise sentences per question.
     """
     try:
         response = client.models.generate_content(
@@ -142,10 +145,11 @@ def generate_discussion_prompts(title, summary):
         data = json.loads(response.text)
         return [data["question_1"], data["question_2"]]
     except Exception as e:
-        print(f"AI Call error: {e}")
+        print(f"⚠️ Gemini API Error for '{title}': {e}")
+        # Emergency backup if API fails or network drops
         return [
-            f"What primary societal or policy trade-offs are highlighted in '{title}'?",
-            "How might different global or local stakeholders view this development?"
+            "How might this development impact different groups in society over the next decade?",
+            "What ethical or practical challenges must leaders address when responding to this situation?"
         ]
 
 def main():

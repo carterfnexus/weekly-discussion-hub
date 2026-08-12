@@ -1,14 +1,15 @@
 import os
 import re
 import json
+import time
 from pathlib import Path
 import urllib.request
 import feedparser
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from jinja2 import Environment, FileSystemLoader
 
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+# Initialize Gemini Client
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 FEEDS = [
     {
@@ -121,50 +122,30 @@ def generate_smart_fallback_prompts(title, summary):
 
 def generate_discussion_prompts(title, summary):
     prompt_text = f"""
-    You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore.
+    You are an expert educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore.
 
     Analyze this news story:
     Title: {title}
     Summary: {summary}
 
-    Generate 2 unique, highly insightful room discussion starters based strictly on this specific story:
-    1. A societal, economic, or policy question regarding trade-offs or impact.
-    2. A critical thinking question evaluating perspectives or long-term implications.
-
-    Format strictly as a JSON object with keys "question_1" and "question_2". Keep each question 1-2 sentences.
+    Return strictly a JSON object with 2 unique discussion starter questions tailored specifically to this story:
+    {{
+      "question_1": "Concise policy, societal trade-offs, or ethical impact question (1-2 sentences)",
+      "question_2": "Concise critical thinking or future implications question (1-2 sentences)"
+    }}
     """
     try:
-        response = client.models.generate_content(
-            model="gemini-flash",
-            contents=prompt_text,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema={
-                    "type": "OBJECT",
-                    "properties": {
-                        "question_1": {"type": "STRING"},
-                        "question_2": {"type": "STRING"}
-                    },
-                    "required": ["question_1", "question_2"]
-                }
-            )
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(
+            prompt_text,
+            generation_config={"response_mime_type": "application/json"}
         )
         data = json.loads(response.text)
         print(f"✅ Gemini AI generated questions for: {title[:30]}...")
         return [data["question_1"], data["question_2"]]
-
     except Exception as e:
-        try:
-            response = client.chats.create(
-                model="gemini-flash"
-            ).send_message(prompt_text)
-            cleaned_text = re.sub(r'```json\s*|\s*```', '', response.text).strip()
-            data = json.loads(cleaned_text)
-            print(f"✅ Gemini Chat API generated questions for: {title[:30]}...")
-            return [data["question_1"], data["question_2"]]
-        except Exception as inner_e:
-            print(f"⚠️ Gemini API bypassed for '{title[:30]}...': {inner_e}")
-            return generate_smart_fallback_prompts(title, summary)
+        print(f"⚠️ Gemini API Error for '{title[:30]}...': {e}")
+        return generate_smart_fallback_prompts(title, summary)
 
 def main():
     processed_items = []
@@ -192,6 +173,7 @@ def main():
         cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
         
         prompts = generate_discussion_prompts(title, cleaned_summary)
+        time.sleep(1)  # Brief delay to maintain standard free-tier request pacing
 
         processed_items.append({
             "category": feed_info["category"],

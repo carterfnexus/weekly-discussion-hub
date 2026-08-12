@@ -97,7 +97,7 @@
 
         .video-wrapper {
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            padding-bottom: 56.25%;
             height: 0;
             border-radius: 12px;
             overflow: hidden;
@@ -113,6 +113,15 @@
             width: 100%;
             height: 100%;
             border: 0;
+        }
+
+        .article-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
         }
 
         p.summary {
@@ -177,6 +186,8 @@
                     allowfullscreen>
                 </iframe>
             </div>
+            {% elif item.image_url %}
+            <img src="{{ item.image_url }}" alt="{{ item.title }}" class="article-image" loading="lazy" />
             {% endif %}
 
             <p class="summary">{{ item.summary }}</p>

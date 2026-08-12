@@ -13,6 +13,33 @@ from jinja2 import Environment, FileSystemLoader
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 FEEDS = [
+    # --- Youth & Classroom Current Affairs ---
+    {
+        "category": "📺 CNN 10 (Student News)",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCv63dklTisfCQ11MJU4092A",
+        "is_video": True
+    },
+    {
+        "category": "📰 The Day (Teen News & Debates)",
+        "url": "https://theday.co.uk/feed/",
+        "is_video": False
+    },
+    {
+        "category": "🎥 BTN - Behind the News",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsI2cR3R-K5Z1-Y1U_A3fBw",
+        "is_video": True
+    },
+    {
+        "category": "🎓 NYT Learning Network",
+        "url": "https://www.nytimes.com/services/xml/rss/nyt/Learning.xml",
+        "is_video": False
+    },
+    {
+        "category": "🇺🇸 PBS NewsHour Classroom",
+        "url": "https://www.pbs.org/newshour/feeds/rss/classroom",
+        "is_video": False
+    },
+
     # --- Regional & Global News Headlines ---
     {
         "category": "🇸🇬 Singapore & Asia News",
@@ -46,11 +73,6 @@ FEEDS = [
         "url": "https://www.theverge.com/rss/index.xml",
         "is_video": False
     },
-    {
-        "category": "🔬 Science & Tech (Video)",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q",
-        "is_video": True
-    },
 
     # --- Philosophy, Ethics & Deep Thought ---
     {
@@ -59,7 +81,7 @@ FEEDS = [
         "is_video": False
     },
     {
-        "category": "🏛️ Daily Nous (Philosophy News & Ethics)",
+        "category": "🏛️ Daily Nous (Philosophy & Ethics)",
         "url": "https://dailynous.com/feed/",
         "is_video": False
     },
@@ -71,7 +93,7 @@ FEEDS = [
         "is_video": False
     },
     {
-        "category": "🗣️ The Rest Is Politics: Leading (Podcast)",
+        "category": "🗣️ The Rest Is Politics: Leading",
         "url": "https://feeds.megaphone.fm/THE7221379133",
         "is_video": False
     },
@@ -173,11 +195,11 @@ def generate_discussion_prompts(title, summary):
     prompt_text = f"""
     You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore.
 
-    Analyze this article, podcast episode, or topic summary:
+    Analyze this article, video, podcast episode, or educational topic summary:
     Title: {title}
     Summary: {summary}
 
-    Generate 2 unique, highly insightful room discussion starters based strictly on this specific story or topic.
+    Generate 2 unique, highly insightful room discussion starters based strictly on this specific topic.
     - Question 1: Focus on real-world policy, ethical dilemmas, societal trade-offs, or human nature.
     - Question 2: Focus on critical thinking, differing perspectives, or future implications.
     - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
@@ -222,7 +244,7 @@ def main():
         entry = parsed.entries[0]
         title = getattr(entry, 'title', 'Untitled Entry')
         
-        # Safely extract link (handles missing 'link' attributes in podcast XMLs)
+        # Safely extract link
         link = getattr(entry, 'link', '#')
         if link == '#' and hasattr(entry, 'links') and len(entry.links) > 0:
             link = entry.links[0].get('href', '#')
@@ -237,7 +259,7 @@ def main():
         
         prompts = generate_discussion_prompts(title, cleaned_summary)
         
-        # Pacing delay (4s) to keep all 17 feeds strictly under free-tier RPM limits
+        # Pacing delay (4s) to keep free-tier rate limits safe
         time.sleep(4)
 
         processed_items.append({

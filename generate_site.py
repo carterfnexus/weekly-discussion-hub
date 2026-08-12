@@ -134,9 +134,8 @@ def generate_discussion_prompts(title, summary):
     Format strictly as a JSON object with keys "question_1" and "question_2". Keep each question 1-2 sentences.
     """
     try:
-        # Standard v1 interaction call pattern
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash",
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -155,10 +154,9 @@ def generate_discussion_prompts(title, summary):
         return [data["question_1"], data["question_2"]]
 
     except Exception as e:
-        # Fallback query attempt using the raw client if model version mapping triggers legacy endpoints
         try:
             response = client.chats.create(
-                model="gemini-2.5-flash"
+                model="gemini-flash"
             ).send_message(prompt_text)
             cleaned_text = re.sub(r'```json\s*|\s*```', '', response.text).strip()
             data = json.loads(cleaned_text)

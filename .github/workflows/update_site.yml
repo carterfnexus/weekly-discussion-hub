@@ -5,6 +5,12 @@ on:
     - cron: '0 22 * * 0' # Runs Sunday 10 PM UTC
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
+# Explicitly grant read/write permissions to GITHUB_TOKEN
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -26,7 +32,7 @@ jobs:
         run: python generate_site.py
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./

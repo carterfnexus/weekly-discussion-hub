@@ -9,31 +9,55 @@ from jinja2 import Environment, FileSystemLoader
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Mixed Sources: Major Global News + Select YouTube Channels
 FEEDS = [
     {
         "category": "🇸🇬 Singapore & Asia News",
-        "url": "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?form=cna_rss_singapore", # CNA Text
+        "url": "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?form=cna_rss_singapore",
         "is_video": False
     },
     {
         "category": "🔬 Science & Tech (Video)",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q", # Kurzgesagt YT
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q",
         "is_video": True
     },
     {
         "category": "🌍 World Headlines",
-        "url": "http://feeds.bbci.co.uk/news/world/rss.xml", # BBC News Text
+        "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
         "is_video": False
     },
     {
         "category": "💡 Global Economy",
-        "url": "https://search.cnbc.com/rs/search/combinedrender/story?partnerId=wrss01&id=20910258", # CNBC Business Text
+        "url": "https://search.cnbc.com/rs/search/combinedrender/story?partnerId=wrss01&id=20910258",
         "is_video": False
     },
     {
-        "category": "⚽ Culture & Environment",
-        "url": "https://www.theguardian.com/environment/rss", # The Guardian Text
+        "category": "🌱 Climate & Environment",
+        "url": "https://www.theguardian.com/environment/rss",
+        "is_video": False
+    },
+    {
+        "category": "🦁 Conservation & Wildlife",
+        "url": "https://news.mongabay.com/feed/",
+        "is_video": False
+    },
+    {
+        "category": "🏢 Architecture & Design",
+        "url": "https://www.archdaily.com/feed",
+        "is_video": False
+    },
+    {
+        "category": "🎨 Art & Visual Culture",
+        "url": "https://www.thecoolhunter.net/feed/",
+        "is_video": False
+    },
+    {
+        "category": "🎧 Music & Sound Culture",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC44KxL04a_7m1uR4O6sU89Q",
+        "is_video": True
+    },
+    {
+        "category": "💻 Consumer Tech & Innovation",
+        "url": "https://www.theverge.com/rss/index.xml",
         "is_video": False
     }
 ]
@@ -59,6 +83,29 @@ def extract_youtube_id(entry):
             return match.group(1)
     return None
 
+def extract_image_url(entry, raw_summary):
+    """Extracts lead image URL from media tags or description HTML."""
+    # 1. Check media_thumbnail tag
+    if hasattr(entry, 'media_thumbnail') and len(entry.media_thumbnail) > 0:
+        return entry.media_thumbnail[0].get('url')
+    
+    # 2. Check media_content tag
+    if hasattr(entry, 'media_content') and len(entry.media_content) > 0:
+        return entry.media_content[0].get('url')
+        
+    # 3. Check enclosures tag
+    if hasattr(entry, 'enclosures') and len(entry.enclosures) > 0:
+        for enc in entry.enclosures:
+            if enc.get('type', '').startswith('image/'):
+                return enc.get('href')
+
+    # 4. Extract first <img> src tag from summary HTML
+    img_match = re.search(r'<img [^>]*src=["\'](https?://[^"\']+)["\']', raw_summary, re.IGNORECASE)
+    if img_match:
+        return img_match.group(1)
+
+    return None
+
 def generate_discussion_prompts(title, summary):
     prompt_text = f"Analyze for Year 11 Singapore students:\nTitle: {title}\nSummary: {summary}\nGenerate 2 concise room discussion starters."
     try:
@@ -82,7 +129,7 @@ def generate_discussion_prompts(title, summary):
         return [data["question_1"], data["question_2"]]
     except Exception:
         return [
-            f"What primary societal trade-offs are highlighted in '{title}'?",
+            f"What primary societal or policy trade-offs are highlighted in '{title}'?",
             "How might different global or local stakeholders view this development?"
         ]
 
@@ -104,10 +151,15 @@ def main():
         link = entry.link
         
         raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'Read full article for details.'))
-        cleaned_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
-        cleaned_summary = (cleaned_summary[:220] + '...') if len(cleaned_summary) > 220 else cleaned_summary
         
+        # Extract lead image if it's not a video
         video_id = extract_youtube_id(entry) if feed_info["is_video"] else None
+        image_url = extract_image_url(entry, raw_summary) if not video_id else None
+
+        # Clean HTML tags out of summary text
+        cleaned_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
+        cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
+        
         prompts = generate_discussion_prompts(title, cleaned_summary)
 
         processed_items.append({
@@ -116,6 +168,7 @@ def main():
             "link": link,
             "summary": cleaned_summary,
             "video_id": video_id,
+            "image_url": image_url,
             "prompts": prompts
         })
 

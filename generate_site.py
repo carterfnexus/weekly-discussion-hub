@@ -133,8 +133,16 @@ def generate_discussion_prompts(title, summary):
     - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
     """
     try:
+        # Dynamically find an active model supported by your key
+        available_models = [m.name for m in client.models.list()]
+        selected_model = "gemini-2.0-flash-lite"
+        for m in available_models:
+            if "flash" in m and "generateContent" in getattr(m, 'supported_generation_methods', []):
+                selected_model = m
+                break
+
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model=selected_model,
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",

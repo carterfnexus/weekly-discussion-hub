@@ -4,77 +4,83 @@ import feedparser
 from google import genai
 from jinja2 import Environment, FileSystemLoader
 
-# Initialize Gemini Client using the official SDK
+# Initialize Gemini Client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Expanded Categories for Year 11 Engagement
+# Categories & Feeds Configuration
 FEEDS = [
     {
         "category": "🇸🇬 Singapore & Asia",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg", # CNA Insider
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC83JT2sFZlC6O3I1yL54Fxg",  # CNA Insider
         "is_video": True
     },
     {
         "category": "🔬 Science & Future Tech",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q", # Kurzgesagt / Science
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q",  # Kurzgesagt
         "is_video": True
     },
     {
         "category": "🌍 World & Politics",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA", # BBC News
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA",  # BBC News
         "is_video": True
     },
     {
         "category": "⚽ Sports & Culture",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCm2719vP8N9sZ33C-i05TzQ", # CNA Sport / Global Sport
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCNAf1k0yIjyGu3k9BwAg3lg",  # Sky Sports News
         "is_video": True
     },
     {
-        "category": "💡 Economics & Society",
+        "category": "💡 Global Economy",
         "url": "http://feeds.bbci.co.uk/news/business/rss.xml",
         "is_video": False
     }
 ]
 
-def extract_youtube_id(url):
-    """Extracts YouTube ID from standard watch links."""
-    match = re.search(r"v=([a-zA-Z0-9_-]+)", url)
-    return match.group(1) if match else None
+def extract_youtube_id(entry, url):
+    """Extracts YouTube ID from feed entry structure or link string."""
+    # Method 1: Look for YouTube element ID tag in entry
+    if hasattr(entry, 'yt_videoid'):
+        return entry.yt_videoid
+    
+    # Method 2: Regex check on link URL
+    match = re.search(r"(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})", url)
+    if match:
+        return match.group(1)
+        
+    return None
 
 def generate_discussion_prompts(title, summary):
-    """Calls Gemini API to construct two structured classroom discussion questions."""
     prompt_text = f"""
     You are an international school educator for 16-year-old Year 11 students in Singapore.
     Analyze this news item:
     Title: {title}
     Summary: {summary}
 
-    Write 2 concise room discussion starters suitable for a high school classroom session:
-    1. A real-world lens question (focusing on society, policy, or ethical trade-offs).
-    2. A critical thinking question (focusing on global implications or critical evaluation).
+    Write 2 concise room discussion starters:
+    1. A real-world lens question (society, policy, or ethics).
+    2. A critical thinking question (TOK/knowledge questions or future implications).
     
-    Format output: Return ONLY two bullet points starting with '- '. Do not add introductory or concluding text.
+    Format: Return ONLY two bullet points starting with '- '.
     """
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt_text
         )
-        # Parse output into clean bullet strings
         lines = response.text.strip().split("\n")
         prompts = [line.lstrip("-* ").strip() for line in lines if line.strip().startswith(("-", "*"))]
         
         if len(prompts) >= 2:
             return prompts[:2]
         return [
-            "What are the main societal or policy trade-offs highlighted in this story?",
-            "How might different stakeholders globally or locally view this development?"
+            "What are the primary societal or ethical trade-offs highlighted in this story?",
+            "How might this development impact different global or local communities?"
         ]
     except Exception as e:
         print(f"Error calling AI: {e}")
         return [
-            "What are the main ethical or practical implications of this event?",
-            "How does this development impact society on a local or global level?"
+            "What are the main societal or policy implications of this development?",
+            "How reliable are the perspectives presented in this story?"
         ]
 
 def main():
@@ -85,22 +91,19 @@ def main():
         parsed = feedparser.parse(feed_info["url"])
         
         if not parsed.entries:
-            print(f"No entries found for {feed_info['category']}")
+            print(f"Warning: Couldn't retrieve items for {feed_info['category']}")
             continue
             
-        # Get the latest entry from the feed
         entry = parsed.entries[0]
         title = entry.title
         link = entry.link
         
-        # Get article summary or description
         raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'No summary available.'))
-        cleaned_summary = re.sub('<[^<]+?>', '', raw_summary)[:300] + "..."  # Strip HTML tags
+        cleaned_summary = re.sub('<[^<]+?>', '', raw_summary)[:280] + "..."
         
-        # Determine if video
-        video_id = extract_youtube_id(link) if feed_info["is_video"] else None
+        video_id = extract_youtube_id(entry, link) if feed_info["is_video"] else None
         
-        print(f"Processing story with AI: {title}")
+        print(f"Processing story: {title} (Video ID: {video_id})")
         prompts = generate_discussion_prompts(title, cleaned_summary)
 
         processed_items.append({
@@ -112,13 +115,11 @@ def main():
             "prompts": prompts
         })
 
-    # Render template using Jinja2
-    print("Generating index.html...")
+    print("Rendering HTML template...")
     env = Environment(loader=FileSystemLoader("templates"))
     template = env.get_template("index_template.html")
     output_html = template.render(items=processed_items)
 
-    # Save output to root folder
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         

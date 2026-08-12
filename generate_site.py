@@ -124,8 +124,9 @@ def fetch_feed_data(url):
 def extract_youtube_id(entry):
     if hasattr(entry, 'yt_videoid'):
         return entry.yt_videoid
-    if hasattr(entry, 'link'):
-        match = re.search(r"(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})", entry.link)
+    entry_link = getattr(entry, 'link', '')
+    if entry_link:
+        match = re.search(r"(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})", entry_link)
         if match:
             return match.group(1)
     return None
@@ -219,8 +220,12 @@ def main():
             continue
             
         entry = parsed.entries[0]
-        title = entry.title
-        link = entry.link
+        title = getattr(entry, 'title', 'Untitled Entry')
+        
+        # Safely extract link (handles missing 'link' attributes in podcast XMLs)
+        link = getattr(entry, 'link', '#')
+        if link == '#' and hasattr(entry, 'links') and len(entry.links) > 0:
+            link = entry.links[0].get('href', '#')
         
         raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'Read or listen for full details.'))
         
@@ -231,7 +236,9 @@ def main():
         cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
         
         prompts = generate_discussion_prompts(title, cleaned_summary)
-        time.sleep(1)
+        
+        # Pacing delay (4s) to keep all 17 feeds strictly under free-tier RPM limits
+        time.sleep(4)
 
         processed_items.append({
             "category": feed_info["category"],

@@ -167,9 +167,10 @@ def generate_discussion_prompts(title, summary):
         data = json.loads(response.text)
         return [data["question_1"], data["question_2"]]
         
-    except Exception as e:
-        # Logs the Gemini error to GitHub Actions console while serving smart fallback prompts
-        print(f"⚠️ Gemini API bypassed for '{title[:30]}...': {e}")
+ except Exception as e:
+        print(f"\n❌ GEMINI API FAILED for '{title}'")
+        print(f"   Error Type: {type(e).__name__}")
+        print(f"   Error Details: {e}\n")
         return generate_smart_fallback_prompts(title, summary)
 
 def main():

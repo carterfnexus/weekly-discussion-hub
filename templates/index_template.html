@@ -80,7 +80,6 @@
             align-self: flex-start;
         }
 
-        /* Headline placed ABOVE video */
         h2 {
             font-size: 1.25rem;
             margin: 0 0 1rem 0;
@@ -98,7 +97,7 @@
 
         .video-wrapper {
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
             height: 0;
             border-radius: 12px;
             overflow: hidden;
@@ -167,7 +166,6 @@
         <div class="card">
             <span class="category-badge">{{ item.category }}</span>
             
-            <!-- Headline Title ABOVE Video -->
             <h2><a href="{{ item.link }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a></h2>
 
             {% if item.video_id %}

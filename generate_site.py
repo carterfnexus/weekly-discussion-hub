@@ -135,8 +135,16 @@ def generate_discussion_prompts(title, summary):
     - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
     """
     try:
+        # Dynamically discover which active Flash model is supported by your key
+        active_model = "gemini-2.0-flash" # Default fallback
+        for m in client.models.list():
+            # Grab the first available flash model returned by your key's endpoint
+            if "flash" in m.name.lower():
+                active_model = m.name
+                break
+
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=active_model,
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -151,8 +159,9 @@ def generate_discussion_prompts(title, summary):
             )
         )
         data = json.loads(response.text)
-        print(f"✅ Gemini AI generated questions for: {title[:30]}...")
+        print(f"✅ Gemini AI generated questions using {active_model} for: {title[:30]}...")
         return [data["question_1"], data["question_2"]]
+
     except Exception as e:
         print(f"⚠️ Gemini API Error for '{title[:30]}...': {e}")
         return generate_smart_fallback_prompts(title, summary)

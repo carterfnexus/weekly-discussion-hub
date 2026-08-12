@@ -13,15 +13,11 @@ from jinja2 import Environment, FileSystemLoader
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 FEEDS = [
+    # --- Regional & Global News Headlines ---
     {
         "category": "🇸🇬 Singapore & Asia News",
         "url": "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?form=cna_rss_singapore",
         "is_video": False
-    },
-    {
-        "category": "🔬 Science & Tech (Video)",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q",
-        "is_video": True
     },
     {
         "category": "🌍 World Headlines",
@@ -33,6 +29,64 @@ FEEDS = [
         "url": "https://search.cnbc.com/rs/search/combinedrender/story?partnerId=wrss01&id=20910258",
         "is_video": False
     },
+
+    # --- Technology, Science & Space ---
+    {
+        "category": "🚀 MIT Technology Review",
+        "url": "https://www.technologyreview.com/feed/",
+        "is_video": False
+    },
+    {
+        "category": "🌌 NASA Breaking News",
+        "url": "https://www.nasa.gov/rss/dyn/breaking_news.rss",
+        "is_video": False
+    },
+    {
+        "category": "💻 Consumer Tech & Innovation",
+        "url": "https://www.theverge.com/rss/index.xml",
+        "is_video": False
+    },
+    {
+        "category": "🔬 Science & Tech (Video)",
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q",
+        "is_video": True
+    },
+
+    # --- Philosophy, Ethics & Deep Thought ---
+    {
+        "category": "🤔 Daily Philosophy",
+        "url": "https://daily-philosophy.com/index.xml",
+        "is_video": False
+    },
+    {
+        "category": "🏛️ Daily Nous (Philosophy News & Ethics)",
+        "url": "https://dailynous.com/feed/",
+        "is_video": False
+    },
+
+    # --- Discussion & Debate Podcasts ---
+    {
+        "category": "🎙️ The Rest Is History (Podcast)",
+        "url": "https://feeds.megaphone.fm/GLT4787413333",
+        "is_video": False
+    },
+    {
+        "category": "🗣️ The Rest Is Politics: Leading (Podcast)",
+        "url": "https://feeds.megaphone.fm/THE7221379133",
+        "is_video": False
+    },
+    {
+        "category": "🗞️ The News Agents (Podcast)",
+        "url": "https://feeds.captivate.fm/the-news-agents/",
+        "is_video": False
+    },
+    {
+        "category": "🎧 BBC Newscast (Podcast)",
+        "url": "https://podcasts.files.bbci.co.uk/p052992m.rss",
+        "is_video": False
+    },
+
+    # --- Environment, Culture & Arts ---
     {
         "category": "🌱 Climate & Environment",
         "url": "https://www.theguardian.com/environment/rss",
@@ -51,16 +105,6 @@ FEEDS = [
     {
         "category": "🎨 Art & Visual Culture",
         "url": "https://www.thecoolhunter.net/feed/",
-        "is_video": False
-    },
-    {
-        "category": "🎧 Music & Sound Culture",
-        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC44KxL04a_7m1uR4O6sU89Q",
-        "is_video": True
-    },
-    {
-        "category": "💻 Consumer Tech & Innovation",
-        "url": "https://www.theverge.com/rss/index.xml",
         "is_video": False
     }
 ]
@@ -113,6 +157,9 @@ def generate_smart_fallback_prompts(title, summary):
     elif any(k in text for k in ["economy", "bill", "price", "market", "cost", "business", "tax", "trade"]):
         q1 = "How might the financial changes discussed impact lower-income versus higher-income groups differently?"
         q2 = "What broader economic risks or opportunities does this development create for global markets?"
+    elif any(k in text for k in ["philosophy", "ethics", "moral", "thought", "mind", "justice"]):
+        q1 = "What core ethical dilemma or societal principle is at the heart of this perspective?"
+        q2 = "How can students apply this line of thinking to real-world personal choices today?"
     elif any(k in text for k in ["singapore", "asia", "local", "government", "policy"]):
         q1 = "How relevant are the issues raised in this story to Singapore's current social or policy landscape?"
         q2 = "What proactive steps can local decision-makers take to manage this situation effectively?"
@@ -125,13 +172,13 @@ def generate_discussion_prompts(title, summary):
     prompt_text = f"""
     You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore.
 
-    Analyze this news story:
+    Analyze this article, podcast episode, or topic summary:
     Title: {title}
     Summary: {summary}
 
-    Generate 2 unique, highly insightful room discussion starters based strictly on this specific story.
-    - Question 1: Focus on real-world policy, societal trade-offs, or ethical impact.
-    - Question 2: Focus on critical thinking, global perspectives, or future implications.
+    Generate 2 unique, highly insightful room discussion starters based strictly on this specific story or topic.
+    - Question 1: Focus on real-world policy, ethical dilemmas, societal trade-offs, or human nature.
+    - Question 2: Focus on critical thinking, differing perspectives, or future implications.
     - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
     """
     try:
@@ -175,7 +222,7 @@ def main():
         title = entry.title
         link = entry.link
         
-        raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'Read full article for details.'))
+        raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'Read or listen for full details.'))
         
         video_id = extract_youtube_id(entry) if feed_info["is_video"] else None
         image_url = extract_image_url(entry, raw_summary) if not video_id else None

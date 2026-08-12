@@ -107,7 +107,21 @@ def extract_image_url(entry, raw_summary):
     return None
 
 def generate_discussion_prompts(title, summary):
-    prompt_text = f"Analyze for Year 11 Singapore students:\nTitle: {title}\nSummary: {summary}\nGenerate 2 concise room discussion starters."
+    prompt_text = f"""
+    You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore (O-Level / IB MYP level).
+
+    Analyze this story:
+    Title: {title}
+    Summary: {summary}
+
+    Requirements for the 2 discussion starters:
+    - **Target Age/Grade**: Year 11 (Age 15–16). Questions must be age-appropriate, avoiding overly simplistic language or overly dense academic jargon.
+    - **Vocabulary**: Use clear, sophisticated, upper-secondary academic vocabulary (e.g., terms like "implications", "trade-offs", "ethical considerations", "stakeholders", "systemic impact").
+    - **Question 1 (Societal/Policy Focus)**: Focus on real-world impact, ethics, government policy, or social trade-offs.
+    - **Question 2 (Critical Thinking/TOK Focus)**: Focus on global perspectives, evaluating sources/perspectives, or long-term consequences.
+    - **Tone**: Engaging, thought-provoking, and unbiased. Avoid sensationalism.
+    - **Length**: Keep each question to 1–2 concise sentences max.
+    """
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
@@ -127,7 +141,8 @@ def generate_discussion_prompts(title, summary):
         import json
         data = json.loads(response.text)
         return [data["question_1"], data["question_2"]]
-    except Exception:
+    except Exception as e:
+        print(f"AI Call error: {e}")
         return [
             f"What primary societal or policy trade-offs are highlighted in '{title}'?",
             "How might different global or local stakeholders view this development?"

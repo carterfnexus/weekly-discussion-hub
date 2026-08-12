@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from pathlib import Path
 import urllib.request
 import feedparser
@@ -7,6 +8,7 @@ from google import genai
 from google.genai import types
 from jinja2 import Environment, FileSystemLoader
 
+# Initialize Gemini Client safely
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 FEEDS = [
@@ -84,22 +86,15 @@ def extract_youtube_id(entry):
     return None
 
 def extract_image_url(entry, raw_summary):
-    """Extracts lead image URL from media tags or description HTML."""
-    # 1. Check media_thumbnail tag
     if hasattr(entry, 'media_thumbnail') and len(entry.media_thumbnail) > 0:
         return entry.media_thumbnail[0].get('url')
-    
-    # 2. Check media_content tag
     if hasattr(entry, 'media_content') and len(entry.media_content) > 0:
         return entry.media_content[0].get('url')
-        
-    # 3. Check enclosures tag
     if hasattr(entry, 'enclosures') and len(entry.enclosures) > 0:
         for enc in entry.enclosures:
             if enc.get('type', '').startswith('image/'):
                 return enc.get('href')
 
-    # 4. Extract first <img> src tag from summary HTML
     img_match = re.search(r'<img [^>]*src=["\'](https?://[^"\']+)["\']', raw_summary, re.IGNORECASE)
     if img_match:
         return img_match.group(1)
@@ -107,34 +102,28 @@ def extract_image_url(entry, raw_summary):
     return None
 
 def generate_smart_fallback_prompts(title, summary):
-    """Smart keyword-driven fallback engine used ONLY if Gemini fails."""
+    """Topic-aware heuristic fallback engine."""
     text = f"{title} {summary}".lower()
     
     if any(k in text for k in ["ai", "tech", "data", "digital", "algorithm", "cyber", "device"]):
-        q1 = f"How should regulatory bodies balance rapid technological innovation against privacy and ethics here?"
+        q1 = "How should regulatory bodies balance rapid technological innovation against ethics and public safety here?"
         q2 = "What long-term skills or adaptations will the future workforce need in response to this shift?"
-        
     elif any(k in text for k in ["climate", "environment", "energy", "nature", "green", "pylon", "carbon"]):
-        q1 = f"What economic or societal trade-offs must local communities accept to support the environmental goals mentioned?"
-        q2 = "Is individual consumer behavior or government regulation more effective in addressing this issue?"
-        
+        q1 = "What economic or societal trade-offs must local communities accept to support the environmental goals mentioned?"
+        q2 = "Is individual consumer behavior or central government regulation more effective in addressing this issue?"
     elif any(k in text for k in ["economy", "bill", "price", "market", "cost", "business", "tax", "trade"]):
-        q1 = f"How might the financial changes discussed impact lower-income versus higher-income groups differently?"
-        q2 = "What broader economic risks or opportunities does this development create for the global market?"
-        
+        q1 = "How might the financial changes discussed impact lower-income versus higher-income groups differently?"
+        q2 = "What broader economic risks or opportunities does this development create for global markets?"
     elif any(k in text for k in ["singapore", "asia", "local", "government", "policy"]):
-        q1 = f"How relevant are the issues raised in this story to Singapore's current social or policy landscape?"
+        q1 = "How relevant are the issues raised in this story to Singapore's current social or policy landscape?"
         q2 = "What proactive steps can local decision-makers take to manage this situation effectively?"
-        
     else:
-        q1 = f"Who are the main stakeholders affected by this development, and how do their priorities conflict?"
-        q2 = f"If you were advising policy-makers on this issue, what immediate action would you recommend?"
+        q1 = "Who are the main stakeholders affected by this development, and how do their priorities conflict?"
+        q2 = "If you were advising policy-makers on this issue, what immediate action would you recommend?"
 
     return [q1, q2]
 
-
 def generate_discussion_prompts(title, summary):
-    """Primary AI Generator with Smart Fallback Protection."""
     prompt_text = f"""
     You are an expert secondary school educator framing classroom discussion starters for 16-year-old Year 11 students in Singapore.
 
@@ -163,13 +152,12 @@ def generate_discussion_prompts(title, summary):
                 }
             )
         )
-        import json
         data = json.loads(response.text)
+        print(f"✅ Gemini AI generated questions for: {title[:30]}...")
         return [data["question_1"], data["question_2"]]
         
     except Exception as e:
-        # Logs the Gemini error to GitHub Actions console while serving smart fallback prompts
-        print(f"⚠️ Gemini API bypassed for '{title[:30]}...': {e}")
+        print(f"⚠️ Gemini API Error for '{title[:30]}...': {type(e).__name__} - {e}")
         return generate_smart_fallback_prompts(title, summary)
 
 def main():
@@ -191,11 +179,9 @@ def main():
         
         raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'Read full article for details.'))
         
-        # Extract lead image if it's not a video
         video_id = extract_youtube_id(entry) if feed_info["is_video"] else None
         image_url = extract_image_url(entry, raw_summary) if not video_id else None
 
-        # Clean HTML tags out of summary text
         cleaned_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
         cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
         
@@ -221,6 +207,8 @@ def main():
 
     with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
+        
+    print(f"Successfully rendered {len(processed_items)} items!")
 
 if __name__ == "__main__":
     main()

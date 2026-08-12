@@ -127,22 +127,16 @@ def generate_discussion_prompts(title, summary):
     Title: {title}
     Summary: {summary}
 
-    Generate 2 unique, highly insightful room discussion starters based strictly on this specific story.
-    - Question 1: Focus on real-world policy, societal trade-offs, or ethical impact.
-    - Question 2: Focus on critical thinking, global perspectives, or future implications.
-    - Style: Concise (1-2 sentences), engaging, and vocabulary-appropriate for Year 11.
+    Generate 2 unique, highly insightful room discussion starters based strictly on this specific story:
+    1. A societal, economic, or policy question regarding trade-offs or impact.
+    2. A critical thinking question evaluating perspectives or long-term implications.
+
+    Format strictly as a JSON object with keys "question_1" and "question_2". Keep each question 1-2 sentences.
     """
     try:
-        # Dynamically find an active model supported by your key
-        available_models = [m.name for m in client.models.list()]
-        selected_model = "gemini-2.0-flash-lite"
-        for m in available_models:
-            if "flash" in m and "generateContent" in getattr(m, 'supported_generation_methods', []):
-                selected_model = m
-                break
-
+        # Standard v1 interaction call pattern
         response = client.models.generate_content(
-            model=selected_model,
+            model="gemini-2.5-flash",
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -159,9 +153,20 @@ def generate_discussion_prompts(title, summary):
         data = json.loads(response.text)
         print(f"✅ Gemini AI generated questions for: {title[:30]}...")
         return [data["question_1"], data["question_2"]]
+
     except Exception as e:
-        print(f"⚠️ Gemini API Error for '{title[:30]}...': {type(e).__name__} - {e}")
-        return generate_smart_fallback_prompts(title, summary)
+        # Fallback query attempt using the raw client if model version mapping triggers legacy endpoints
+        try:
+            response = client.chats.create(
+                model="gemini-2.5-flash"
+            ).send_message(prompt_text)
+            cleaned_text = re.sub(r'```json\s*|\s*```', '', response.text).strip()
+            data = json.loads(cleaned_text)
+            print(f"✅ Gemini Chat API generated questions for: {title[:30]}...")
+            return [data["question_1"], data["question_2"]]
+        except Exception as inner_e:
+            print(f"⚠️ Gemini API bypassed for '{title[:30]}...': {inner_e}")
+            return generate_smart_fallback_prompts(title, summary)
 
 def main():
     processed_items = []

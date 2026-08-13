@@ -190,28 +190,40 @@ def extract_image_url(entry, raw_summary):
     return None
 
 def is_age_appropriate(title, summary):
-    """Failsafe moderation check to ensure content is suitable for 16 & under."""
-    # Fast regex filter for explicit keywords
-    blacklisted_terms = [
-        r"\bporn\b", r"\bexplicit\b", r"\bgore\b", r"\bsuicide\b", 
-        r"\bnsfw\b", r"\bgraphic violence\b", r"\bsexual assault\b"
+    """Failsafe moderation check to ensure content is suitable for international school students."""
+    
+    # 1. Direct Regex Blacklist for War, Violence, and Sensitive Regional Conflicts
+    sensitive_topics = [
+        r"\bmurder\b", r"\bkilled\b", r"\bkilling\b", r"\bbombing\b", r"\bbomb\b", 
+        r"\bexplosion\b", r"\bair strike\b", r"\bairstrike\b", r"\bwar\b", r"\bwarfare\b",
+        r"\bpalestine\b", r"\bpalestinian\b", r"\bisrael\b", r"\bisraeli\b", r"\bgaza\b",
+        r"\bukraine\b", r"\bukrainian\b", r"\brussia\b", r"\brussian invasion\b",
+        r"\bhostage\b", r"\bcasualty\b", r"\bcasualties\b", r"\bterrorist\b", r"\bterrorism\b",
+        r"\bconflict\b", r"\bmilitary strike\b", r"\bsuicide\b", r"\bgraphic\b",
+        r"\bporn\b", r"\bexplicit\b", r"\bgore\b", r"\bnsfw\b", r"\bsexual assault\b"
     ]
+    
     combined_text = f"{title} {summary}".lower()
-    for term in blacklisted_terms:
-        if re.search(term, combined_text):
-            print(f"🚫 Failsafe Triggered: Keyword match '{term}' for item: {title[:30]}")
+    for pattern in sensitive_topics:
+        if re.search(pattern, combined_text):
+            print(f"🚫 Sensitive Topic Filtered ('{pattern}'): {title[:40]}...")
             return False
 
-    # AI Moderation Check
+    # 2. Strict AI Moderation Check tailored for International Schools
     prompt = f"""
-    You are a strict secondary school content filter evaluating news for students aged 16 and under (Year 11 / High School).
+    You are a content filter for a highly diverse, international school setting (students aged 16 and under).
 
     Title: {title}
     Summary: {summary}
 
-    Is this topic appropriate for discussion in a 16-and-under classroom setting? 
-    Reject if it contains graphic violence, explicit sexual content, self-harm, or gratuitous gore.
-    Political, economic, scientific, and ethical news debates ARE appropriate.
+    Determine if this topic should be EXCLUDED from a general classroom discussion wall.
+    EXCLUDE (appropriate = false) if the content mentions:
+    - Active war, military conflicts, air strikes, or bombings.
+    - Geopolitically sensitive conflicts (e.g., Israel/Palestine/Gaza, Russia/Ukraine).
+    - Murders, violent crimes, acts of terrorism, or casualties.
+    - Topics likely to cause personal distress or trauma to students from conflict-affected regions.
+
+    ALLOW (appropriate = true) for general world affairs, technology, climate, space, science, philosophy, economics, culture, and positive educational news.
 
     Return JSON: {{"appropriate": true}} or {{"appropriate": false}}
     """
@@ -234,12 +246,12 @@ def is_age_appropriate(title, summary):
         data = json.loads(response.text)
         return data.get("appropriate", True)
     except Exception as e:
-        print(f"⚠️ Moderation API Check failed, defaulting to basic filter: {e}")
+        print(f"⚠️ Moderation Check failed, falling back to safe regex: {e}")
         return True
 
 def generate_ai_widgets(count=6):
     prompt = f"""
-    Create {count} distinct, highly engaging form-time activities strictly appropriate for 16-year-old secondary students.
+    Create {count} distinct, highly engaging form-time activities strictly appropriate for 16-year-old secondary students in an international school.
     Return a list of JSON objects with these types:
     1. Riddle (type: "🧩 Quick Riddle", title: question, answer: answer)
     2. Joke (type: "😄 Classroom Joke", title: setup, answer: punchline)
@@ -377,10 +389,10 @@ def main():
         cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
         
         # -------------------------------------------------------------
-        # FAILSAFE CHECK: Skip any item flagged as inappropriate for <=16
+        # FAILSAFE CHECK: Skip any item flagged as inappropriate/sensitive
         # -------------------------------------------------------------
         if not is_age_appropriate(title, cleaned_summary):
-            print(f"⚠️ Skipping inappropriate content: {title[:40]}...")
+            print(f"⚠️ Skipping sensitive content: {title[:40]}...")
             continue
 
         prompts = generate_discussion_prompts(title, cleaned_summary)
@@ -414,7 +426,7 @@ def main():
     with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         
-    print(f"Successfully rendered {len(processed_items)} age-appropriate items!")
+    print(f"Successfully rendered {len(processed_items)} safe, classroom-ready items!")
 
 if __name__ == "__main__":
     main()

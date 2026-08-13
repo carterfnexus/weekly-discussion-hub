@@ -191,8 +191,6 @@ def extract_image_url(entry, raw_summary):
 
 def is_age_appropriate(title, summary):
     """Failsafe moderation check to ensure content is suitable for international school students."""
-    
-    # 1. Direct Regex Blacklist for War, Violence, and Sensitive Regional Conflicts
     sensitive_topics = [
         r"\bmurder\b", r"\bkilled\b", r"\bkilling\b", r"\bbombing\b", r"\bbomb\b", 
         r"\bexplosion\b", r"\bair strike\b", r"\bairstrike\b", r"\bwar\b", r"\bwarfare\b",
@@ -209,7 +207,6 @@ def is_age_appropriate(title, summary):
             print(f"🚫 Sensitive Topic Filtered ('{pattern}'): {title[:40]}...")
             return False
 
-    # 2. Strict AI Moderation Check tailored for International Schools
     prompt = f"""
     You are a content filter for a highly diverse, international school setting (students aged 16 and under).
 
@@ -249,7 +246,7 @@ def is_age_appropriate(title, summary):
         print(f"⚠️ Moderation Check failed, falling back to safe regex: {e}")
         return True
 
-def generate_ai_widgets(count=6):
+def generate_ai_widgets(count=20):
     prompt = f"""
     Create {count} distinct, highly engaging form-time activities strictly appropriate for 16-year-old secondary students in an international school.
     
@@ -257,9 +254,9 @@ def generate_ai_widgets(count=6):
     - type: Category string
     - title: Main question or setup string
     - answer: Answer string
-    - flag_code: 2-letter lowercase ISO country code ONLY if the type is "🌐 Flag & Country Quiz" (e.g., "sg", "jp", "fr", "br", "ca"). Otherwise, leave as empty string.
+    - flag_code: 2-letter lowercase ISO country code ONLY if the type is "🌐 Flag & Country Quiz" (e.g., "sg", "jp", "fr", "br", "ca", "de", "gb", "us", "in", "au"). Otherwise, leave as empty string.
 
-    Widget Types to include:
+    Widget Types to randomly mix:
     1. Riddle (type: "🧩 Quick Riddle", title: question, answer: answer)
     2. Joke (type: "😄 Classroom Joke", title: setup, answer: punchline)
     3. Interesting Fact (type: "💡 Did You Know?", title: mind-blowing fact, answer: empty string)
@@ -292,14 +289,13 @@ def generate_ai_widgets(count=6):
         widgets = json.loads(response.text)
         for w in widgets:
             w["is_widget"] = True
-            # Build high-res flag image URL if flag_code exists
             if w.get("flag_code"):
                 code = w["flag_code"].lower().strip()
                 w["flag_image_url"] = f"https://flagcdn.com/w320/{code}.png"
             else:
                 w["flag_image_url"] = None
 
-        print(f"✅ Generated {len(widgets)} Safe AI Form Time Widgets with Flag Support!")
+        print(f"✅ Generated {len(widgets)} AI Form Time Widgets!")
         return widgets
     except Exception as e:
         print(f"⚠️ Widget Generation Error: {e}")
@@ -373,8 +369,10 @@ def generate_discussion_prompts(title, summary):
 def main():
     processed_items = []
     
-    # Generate safe AI Widgets
-    widgets = generate_ai_widgets(count=6)
+    # Generate 20 widgets total
+    all_widgets = generate_ai_widgets(count=20)
+    initial_widgets = all_widgets[:6]
+    extra_widgets = all_widgets[6:] # Backup pool for "Next" button
     widget_idx = 0
 
     for i, feed_info in enumerate(FEEDS):
@@ -387,32 +385,38 @@ def main():
         if not parsed.entries:
             continue
             
-        entry = parsed.entries[0]
-        title = getattr(entry, 'title', 'Untitled Entry')
-        
-        # Safely extract link
-        link = getattr(entry, 'link', '#')
-        if link == '#' and hasattr(entry, 'links') and len(entry.links) > 0:
-            link = entry.links[0].get('href', '#')
-        
-        raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'Read or listen for full details.'))
-        
-        video_id = extract_youtube_id(entry) if feed_info["is_video"] else None
-        image_url = extract_image_url(entry, raw_summary) if not video_id else None
+        # Scan top 5 entries in the feed to find a safe article
+        selected_entry = None
+        cleaned_summary = ""
 
-        cleaned_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
-        cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
-        
-        # -------------------------------------------------------------
-        # FAILSAFE CHECK: Skip any item flagged as inappropriate/sensitive
-        # -------------------------------------------------------------
-        if not is_age_appropriate(title, cleaned_summary):
-            print(f"⚠️ Skipping sensitive content: {title[:40]}...")
+        for entry in parsed.entries[:5]:
+            title = getattr(entry, 'title', 'Untitled Entry')
+            raw_summary = getattr(entry, 'summary', getattr(entry, 'description', 'Read or listen for full details.'))
+            candidate_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
+            candidate_summary = (candidate_summary[:200] + '...') if len(candidate_summary) > 200 else candidate_summary
+
+            if is_age_appropriate(title, candidate_summary):
+                selected_entry = entry
+                cleaned_summary = candidate_summary
+                break
+            else:
+                print(f"⚠️ Skipping sensitive item in {feed_info['category']}: '{title[:30]}...'. Checking next.")
+
+        if not selected_entry:
+            print(f"❌ All top entries for {feed_info['category']} were filtered out.")
             continue
+
+        title = getattr(selected_entry, 'title', 'Untitled Entry')
+        link = getattr(selected_entry, 'link', '#')
+        if link == '#' and hasattr(selected_entry, 'links') and len(selected_entry.links) > 0:
+            link = selected_entry.links[0].get('href', '#')
+        
+        video_id = extract_youtube_id(selected_entry) if feed_info["is_video"] else None
+        image_url = extract_image_url(selected_entry, getattr(selected_entry, 'summary', '')) if not video_id else None
 
         prompts = generate_discussion_prompts(title, cleaned_summary)
         
-        time.sleep(4) # Rate-limit pacing delay
+        time.sleep(4)
 
         processed_items.append({
             "category": feed_info["category"],
@@ -425,9 +429,8 @@ def main():
             "is_widget": False
         })
 
-        # Inject a safe AI widget after every 3 news cards
-        if (i + 1) % 3 == 0 and widget_idx < len(widgets):
-            processed_items.append(widgets[widget_idx])
+        if (i + 1) % 3 == 0 and widget_idx < len(initial_widgets):
+            processed_items.append(initial_widgets[widget_idx])
             widget_idx += 1
 
     base_dir = Path(__file__).resolve().parent
@@ -436,12 +439,15 @@ def main():
     env = Environment(loader=FileSystemLoader(str(templates_dir)))
     template_name = "index_template.html" if (templates_dir / "index_template.html").exists() else "index.html"
     template = env.get_template(template_name)
-    output_html = template.render(items=processed_items)
+    output_html = template.render(
+        items=processed_items,
+        extra_widgets_json=json.dumps(extra_widgets)
+    )
 
     with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         
-    print(f"Successfully rendered {len(processed_items)} safe, classroom-ready items!")
+    print(f"Successfully rendered {len(processed_items)} items!")
 
 if __name__ == "__main__":
     main()

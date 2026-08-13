@@ -59,7 +59,6 @@
           <!-- ========================================== -->
           <!-- FORM TIME WIDGET CARD (Jazzy & Prominent)  -->
           <!-- ========================================== -->
-          <!-- Dynamic Background Rotation based on Loop Index -->
           {% set bg_styles = [
             "from-amber-50 via-orange-50 to-yellow-100 border-amber-300",
             "from-purple-50 via-pink-50 to-rose-100 border-purple-300",
@@ -78,10 +77,24 @@
                 </span>
               </div>
 
-              <!-- Question / Prompt (Bigger Font) -->
+              <!-- Question / Prompt (Bigger Font & Centered) -->
               <h3 class="text-xl sm:text-2xl font-black text-gray-900 text-center leading-snug tracking-tight my-2">
                 {{ item.title }}
               </h3>
+
+              <!-- High-Res Flag Image Container (For Flag Quizzes) -->
+              {% if item.flag_image_url %}
+                <div class="my-4 flex justify-center">
+                  <div class="bg-white p-2 rounded-2xl shadow-md border-2 border-slate-200/80 inline-block">
+                    <img 
+                      src="{{ item.flag_image_url }}" 
+                      alt="Country Flag Quiz" 
+                      class="h-28 sm:h-32 object-contain rounded-lg mx-auto"
+                      loading="lazy"
+                    >
+                  </div>
+                </div>
+              {% endif %}
             </div>
 
             <!-- Big, Centered & Fun Interactive Reveal Button -->

@@ -214,12 +214,7 @@ def is_age_appropriate(title, summary):
     Summary: {summary}
 
     Determine if this topic should be EXCLUDED from a general classroom discussion wall.
-    EXCLUDE (appropriate = false) if the content mentions:
-    - Active war, military conflicts, air strikes, or bombings.
-    - Geopolitically sensitive conflicts (e.g., Israel/Palestine/Gaza, Russia/Ukraine).
-    - Murders, violent crimes, acts of terrorism, or casualties.
-    - Topics likely to cause personal distress or trauma to students from conflict-affected regions.
-
+    EXCLUDE (appropriate = false) if the content mentions active war, military conflicts, geopolitical violence, graphic topics, or casualties.
     ALLOW (appropriate = true) for general world affairs, technology, climate, space, science, philosophy, economics, culture, and positive educational news.
 
     Return JSON: {{"appropriate": true}} or {{"appropriate": false}}
@@ -246,83 +241,81 @@ def is_age_appropriate(title, summary):
         print(f"⚠️ Moderation Check failed, falling back to safe regex: {e}")
         return True
 
-def generate_ai_widgets(count=20):
-    prompt = f"""
-    Create {count} distinct, highly engaging form-time activities strictly appropriate for 16-year-old secondary students in an international school.
-    
-    Return a list of JSON objects with these exact keys:
-    - type: Category string
-    - title: Main question or setup string
-    - answer: Answer string
-    - flag_code: 2-letter lowercase ISO country code ONLY if the type is "🌐 Flag & Country Quiz" (e.g., "sg", "jp", "fr", "br", "ca", "de", "gb", "us", "in", "au"). Otherwise, leave as empty string.
+def generate_ai_widgets_by_type():
+    """Generates distinct, isolated pools for each specific activity category."""
+    categories = [
+        {"type": "🌐 Flag & Country Quiz", "key": "flag", "count": 10},
+        {"type": "🧩 Quick Riddle", "key": "riddle", "count": 10},
+        {"type": "😄 Classroom Joke", "key": "joke", "count": 10},
+        {"type": "💡 Did You Know?", "key": "fact", "count": 10},
+        {"type": "🔢 60-Second Math Challenge", "key": "math", "count": 10},
+        {"type": "💬 Quote of the Week", "key": "quote", "count": 10},
+    ]
 
-    Widget Types to randomly mix:
-    1. Riddle (type: "🧩 Quick Riddle", title: question, answer: answer)
-    2. Joke (type: "😄 Classroom Joke", title: setup, answer: punchline)
-    3. Interesting Fact (type: "💡 Did You Know?", title: mind-blowing fact, answer: empty string)
-    4. Country Flag Trivia (type: "🌐 Flag & Country Quiz", title: "Which country's national flag is shown below?", answer: country name + 1 cool detail, flag_code: "sg")
-    5. Math Problem (type: "🔢 60-Second Math Challenge", title: clever brain-teaser math problem, answer: solution)
-    6. Inspiring Quote (type: "💬 Quote of the Week", title: inspiring quote + author, answer: empty string)
-    """
-    try:
-        response = client.models.generate_content(
-            model="models/gemini-flash-latest",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                safety_settings=SAFETY_SETTINGS,
-                response_schema={
-                    "type": "ARRAY",
-                    "items": {
-                        "type": "OBJECT",
-                        "properties": {
-                            "type": {"type": "STRING"},
-                            "title": {"type": "STRING"},
-                            "answer": {"type": "STRING"},
-                            "flag_code": {"type": "STRING"}
-                        },
-                        "required": ["type", "title", "answer", "flag_code"]
+    widget_pools = {}
+
+    for cat in categories:
+        prompt = f"""
+        Create {cat['count']} distinct, highly engaging form-time activities strictly of the type "{cat['type']}" for 16-year-old international school students.
+
+        Return a JSON array of objects with keys:
+        - "type": "{cat['type']}"
+        - "title": Main question, setup, or quote
+        - "answer": The answer/punchline (or empty string for facts/quotes)
+        - "flag_code": 2-letter ISO country code (ONLY if type is "🌐 Flag & Country Quiz", e.g. "sg", "jp", "fr", "br", "de", "gb", "us", "in", "au", "ca", "mx", "kr", "it", "es", "ch"). Otherwise empty string.
+        """
+        try:
+            response = client.models.generate_content(
+                model="models/gemini-flash-latest",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    safety_settings=SAFETY_SETTINGS,
+                    response_schema={
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "type": {"type": "STRING"},
+                                "title": {"type": "STRING"},
+                                "answer": {"type": "STRING"},
+                                "flag_code": {"type": "STRING"}
+                            },
+                            "required": ["type", "title", "answer", "flag_code"]
+                        }
                     }
-                }
+                )
             )
-        )
-        widgets = json.loads(response.text)
-        for w in widgets:
-            w["is_widget"] = True
-            if w.get("flag_code"):
-                code = w["flag_code"].lower().strip()
-                w["flag_image_url"] = f"https://flagcdn.com/w320/{code}.png"
-            else:
-                w["flag_image_url"] = None
+            items = json.loads(response.text)
+            for item in items:
+                item["is_widget"] = True
+                item["widget_key"] = cat["key"]
+                if item.get("flag_code"):
+                    code = item["flag_code"].lower().strip()
+                    item["flag_image_url"] = f"https://flagcdn.com/w320/{code}.png"
+                else:
+                    item["flag_image_url"] = None
 
-        print(f"✅ Generated {len(widgets)} AI Form Time Widgets!")
-        return widgets
-    except Exception as e:
-        print(f"⚠️ Widget Generation Error: {e}")
-        return [
-            {"is_widget": True, "type": "🧩 Quick Riddle", "title": "What has to be broken before you can use it?", "answer": "An egg.", "flag_image_url": None},
-            {"is_widget": True, "type": "💡 Did You Know?", "title": "Honey never spoils. Organisms can't grow in it due to low moisture content.", "answer": "", "flag_image_url": None},
-            {"is_widget": True, "type": "🌐 Flag & Country Quiz", "title": "Which country's national flag is shown below?", "answer": "Singapore! The 5 stars represent democracy, peace, progress, justice, and equality.", "flag_image_url": "https://flagcdn.com/w320/sg.png"},
-            {"is_widget": True, "type": "🔢 Math Challenge", "title": "If 3 cats catch 3 mice in 3 minutes, how many cats catch 100 mice in 100 minutes?", "answer": "3 cats! Every cat catches 1 mouse every 3 minutes.", "flag_image_url": None}
-        ]
+            widget_pools[cat["key"]] = items
+            print(f"✅ Generated dedicated pool for: {cat['type']}")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠️ Error generating pool for {cat['type']}: {e}")
+            widget_pools[cat["key"]] = []
+
+    return widget_pools
 
 def generate_smart_fallback_prompts(title, summary):
     text = f"{title} {summary}".lower()
-    if any(k in text for k in ["ai", "tech", "data", "digital", "algorithm", "cyber", "device"]):
+    if any(k in text for k in ["ai", "tech", "data", "digital", "algorithm", "cyber"]):
         q1 = "How should regulatory bodies balance rapid technological innovation against ethics and public safety here?"
         q2 = "What long-term skills or adaptations will the future workforce need in response to this shift?"
     elif any(k in text for k in ["climate", "environment", "energy", "nature", "green", "pylon", "carbon"]):
         q1 = "What economic or societal trade-offs must local communities accept to support the environmental goals mentioned?"
         q2 = "Is individual consumer behavior or central government regulation more effective in addressing this issue?"
-    elif any(k in text for k in ["economy", "bill", "price", "market", "cost", "business", "tax", "trade"]):
+    elif any(k in text for k in ["economy", "bill", "price", "market", "cost", "business", "tax"]):
         q1 = "How might the financial changes discussed impact lower-income versus higher-income groups differently?"
         q2 = "What broader economic risks or opportunities does this development create for global markets?"
-    elif any(k in text for k in ["philosophy", "ethics", "moral", "thought", "mind", "justice"]):
-        q1 = "What core ethical dilemma or societal principle is at the heart of this perspective?"
-        q2 = "How can students apply this line of thinking to real-world personal choices today?"
-    elif any(k in text for k in ["singapore", "asia", "local", "government", "policy"]):
-        q1 = "How relevant are the issues raised in this story to Singapore's current social or policy landscape?"
-        q2 = "What proactive steps can local decision-makers take to manage this situation effectively?"
     else:
         q1 = "Who are the main stakeholders affected by this development, and how do their priorities conflict?"
         q2 = "If you were advising policy-makers on this issue, what immediate action would you recommend?"
@@ -359,20 +352,30 @@ def generate_discussion_prompts(title, summary):
             )
         )
         data = json.loads(response.text)
-        print(f"✅ Gemini AI generated questions for: {title[:30]}...")
+        print(f"✅ Discussion starters created for: {title[:30]}...")
         return [data["question_1"], data["question_2"]]
         
     except Exception as e:
-        print(f"⚠️ Gemini API Error for '{title[:30]}...': {e}")
+        print(f"⚠️ Prompt generation error for '{title[:30]}...': {e}")
         return generate_smart_fallback_prompts(title, summary)
 
 def main():
     processed_items = []
     
-    # Generate 20 widgets total
-    all_widgets = generate_ai_widgets(count=20)
-    initial_widgets = all_widgets[:6]
-    extra_widgets = all_widgets[6:] # Backup pool for "Next" button
+    # Generate category-specific pools
+    pools = generate_ai_widgets_by_type()
+    
+    # Pop the first element from each pool to act as the initial display card
+    initial_widgets = {
+        "flag": pools["flag"].pop(0) if pools["flag"] else None,
+        "riddle": pools["riddle"].pop(0) if pools["riddle"] else None,
+        "joke": pools["joke"].pop(0) if pools["joke"] else None,
+        "fact": pools["fact"].pop(0) if pools["fact"] else None,
+        "math": pools["math"].pop(0) if pools["math"] else None,
+        "quote": pools["quote"].pop(0) if pools["quote"] else None,
+    }
+
+    widget_keys_order = ["flag", "riddle", "joke", "fact", "math", "quote"]
     widget_idx = 0
 
     for i, feed_info in enumerate(FEEDS):
@@ -385,7 +388,7 @@ def main():
         if not parsed.entries:
             continue
             
-        # Scan top 5 entries in the feed to find a safe article
+        # Check top 5 entries to find a safe article
         selected_entry = None
         cleaned_summary = ""
 
@@ -400,23 +403,21 @@ def main():
                 cleaned_summary = candidate_summary
                 break
             else:
-                print(f"⚠️ Skipping sensitive item in {feed_info['category']}: '{title[:30]}...'. Checking next.")
+                print(f"⚠️ Skipping sensitive entry in {feed_info['category']}: '{title[:30]}...'")
 
         if not selected_entry:
-            print(f"❌ All top entries for {feed_info['category']} were filtered out.")
             continue
 
         title = getattr(selected_entry, 'title', 'Untitled Entry')
         link = getattr(selected_entry, 'link', '#')
         if link == '#' and hasattr(selected_entry, 'links') and len(selected_entry.links) > 0:
             link = selected_entry.links[0].get('href', '#')
-        
+
         video_id = extract_youtube_id(selected_entry) if feed_info["is_video"] else None
         image_url = extract_image_url(selected_entry, getattr(selected_entry, 'summary', '')) if not video_id else None
 
         prompts = generate_discussion_prompts(title, cleaned_summary)
-        
-        time.sleep(4)
+        time.sleep(3)
 
         processed_items.append({
             "category": feed_info["category"],
@@ -429,8 +430,11 @@ def main():
             "is_widget": False
         })
 
-        if (i + 1) % 3 == 0 and widget_idx < len(initial_widgets):
-            processed_items.append(initial_widgets[widget_idx])
+        # Inject a category-specific widget every 3 feed items
+        if (i + 1) % 3 == 0 and widget_idx < len(widget_keys_order):
+            key = widget_keys_order[widget_idx]
+            if initial_widgets[key]:
+                processed_items.append(initial_widgets[key])
             widget_idx += 1
 
     base_dir = Path(__file__).resolve().parent
@@ -439,15 +443,16 @@ def main():
     env = Environment(loader=FileSystemLoader(str(templates_dir)))
     template_name = "index_template.html" if (templates_dir / "index_template.html").exists() else "index.html"
     template = env.get_template(template_name)
+
     output_html = template.render(
         items=processed_items,
-        extra_widgets_json=json.dumps(extra_widgets)
+        widget_pools_json=json.dumps(pools)
     )
 
     with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         
-    print(f"Successfully rendered {len(processed_items)} items!")
+    print(f"Successfully generated page with dedicated category pools!")
 
 if __name__ == "__main__":
     main()

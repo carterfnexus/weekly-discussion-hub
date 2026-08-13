@@ -252,11 +252,18 @@ def is_age_appropriate(title, summary):
 def generate_ai_widgets(count=6):
     prompt = f"""
     Create {count} distinct, highly engaging form-time activities strictly appropriate for 16-year-old secondary students in an international school.
-    Return a list of JSON objects with these types:
+    
+    Return a list of JSON objects with these exact keys:
+    - type: Category string
+    - title: Main question or setup string
+    - answer: Answer string
+    - flag_code: 2-letter lowercase ISO country code ONLY if the type is "🌐 Flag & Country Quiz" (e.g., "sg", "jp", "fr", "br", "ca"). Otherwise, leave as empty string.
+
+    Widget Types to include:
     1. Riddle (type: "🧩 Quick Riddle", title: question, answer: answer)
     2. Joke (type: "😄 Classroom Joke", title: setup, answer: punchline)
     3. Interesting Fact (type: "💡 Did You Know?", title: mind-blowing fact, answer: empty string)
-    4. Country Flag & Trivia (type: "🌐 Flag & Country Quiz", title: flag emoji + question, answer: country name + cool detail)
+    4. Country Flag Trivia (type: "🌐 Flag & Country Quiz", title: "Which country's national flag is shown below?", answer: country name + 1 cool detail, flag_code: "sg")
     5. Math Problem (type: "🔢 60-Second Math Challenge", title: clever brain-teaser math problem, answer: solution)
     6. Inspiring Quote (type: "💬 Quote of the Week", title: inspiring quote + author, answer: empty string)
     """
@@ -274,9 +281,10 @@ def generate_ai_widgets(count=6):
                         "properties": {
                             "type": {"type": "STRING"},
                             "title": {"type": "STRING"},
-                            "answer": {"type": "STRING"}
+                            "answer": {"type": "STRING"},
+                            "flag_code": {"type": "STRING"}
                         },
-                        "required": ["type", "title", "answer"]
+                        "required": ["type", "title", "answer", "flag_code"]
                     }
                 }
             )
@@ -284,15 +292,22 @@ def generate_ai_widgets(count=6):
         widgets = json.loads(response.text)
         for w in widgets:
             w["is_widget"] = True
-        print(f"✅ Generated {len(widgets)} Safe AI Form Time Widgets!")
+            # Build high-res flag image URL if flag_code exists
+            if w.get("flag_code"):
+                code = w["flag_code"].lower().strip()
+                w["flag_image_url"] = f"https://flagcdn.com/w320/{code}.png"
+            else:
+                w["flag_image_url"] = None
+
+        print(f"✅ Generated {len(widgets)} Safe AI Form Time Widgets with Flag Support!")
         return widgets
     except Exception as e:
         print(f"⚠️ Widget Generation Error: {e}")
         return [
-            {"is_widget": True, "type": "🧩 Quick Riddle", "title": "What has to be broken before you can use it?", "answer": "An egg."},
-            {"is_widget": True, "type": "💡 Did You Know?", "title": "Honey never spoils. Organisms can't grow in it due to low moisture content.", "answer": ""},
-            {"is_widget": True, "type": "🔢 Math Challenge", "title": "If 3 cats catch 3 mice in 3 minutes, how many cats catch 100 mice in 100 minutes?", "answer": "3 cats! Every cat catches 1 mouse every 3 minutes."},
-            {"is_widget": True, "type": "🌐 Country Quiz", "title": "🇸🇬 Which country has a flag featuring a crescent moon and 5 white stars?", "answer": "Singapore! The 5 stars represent democracy, peace, progress, justice, and equality."}
+            {"is_widget": True, "type": "🧩 Quick Riddle", "title": "What has to be broken before you can use it?", "answer": "An egg.", "flag_image_url": None},
+            {"is_widget": True, "type": "💡 Did You Know?", "title": "Honey never spoils. Organisms can't grow in it due to low moisture content.", "answer": "", "flag_image_url": None},
+            {"is_widget": True, "type": "🌐 Flag & Country Quiz", "title": "Which country's national flag is shown below?", "answer": "Singapore! The 5 stars represent democracy, peace, progress, justice, and equality.", "flag_image_url": "https://flagcdn.com/w320/sg.png"},
+            {"is_widget": True, "type": "🔢 Math Challenge", "title": "If 3 cats catch 3 mice in 3 minutes, how many cats catch 100 mice in 100 minutes?", "answer": "3 cats! Every cat catches 1 mouse every 3 minutes.", "flag_image_url": None}
         ]
 
 def generate_smart_fallback_prompts(title, summary):

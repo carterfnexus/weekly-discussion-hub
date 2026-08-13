@@ -378,7 +378,7 @@ def main():
     widget_keys_order = ["flag", "riddle", "joke", "fact", "math", "quote"]
     widget_idx = 0
 
-    for i, feed_info in enumerate(FEEDS):
+    for feed_info in FEEDS:
         print(f"Fetching: {feed_info['category']}...")
         raw_xml = fetch_feed_data(feed_info["url"])
         if not raw_xml:
@@ -417,8 +417,9 @@ def main():
         image_url = extract_image_url(selected_entry, getattr(selected_entry, 'summary', '')) if not video_id else None
 
         prompts = generate_discussion_prompts(title, cleaned_summary)
-        time.sleep(3)
+        time.sleep(2)
 
+        # Append news article or video
         processed_items.append({
             "category": feed_info["category"],
             "title": title,
@@ -430,19 +431,26 @@ def main():
             "is_widget": False
         })
 
-        # Inject a category-specific widget every 3 feed items
-        if (i + 1) % 3 == 0 and widget_idx < len(widget_keys_order):
+        # Inject a dedicated category widget for every 2 successfully processed feed cards
+        if len([x for x in processed_items if not x["is_widget"]]) % 2 == 0 and widget_idx < len(widget_keys_order):
             key = widget_keys_order[widget_idx]
             if initial_widgets[key]:
                 processed_items.append(initial_widgets[key])
+                print(f"📌 Injected widget: {key}")
             widget_idx += 1
+
+    # Append any remaining widgets if feeds were fewer than expected
+    while widget_idx < len(widget_keys_order):
+        key = widget_keys_order[widget_idx]
+        if initial_widgets[key]:
+            processed_items.append(initial_widgets[key])
+        widget_idx += 1
 
     base_dir = Path(__file__).resolve().parent
     templates_dir = base_dir / "templates"
 
     env = Environment(loader=FileSystemLoader(str(templates_dir)))
-    template_name = "index_template.html" if (templates_dir / "index_template.html").exists() else "index.html"
-    template = env.get_template(template_name)
+    template = env.get_template("index_template.html")
 
     output_html = template.render(
         items=processed_items,
@@ -452,7 +460,7 @@ def main():
     with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         
-    print(f"Successfully generated page with dedicated category pools!")
+    print(f"Successfully generated page with {len(processed_items)} total items!")
 
 if __name__ == "__main__":
     main()

@@ -2,6 +2,7 @@ import os
 import re
 import json
 import time
+import random
 from pathlib import Path
 import urllib.request
 import feedparser
@@ -169,6 +170,53 @@ def extract_image_url(entry, raw_summary):
 
     return None
 
+def generate_ai_widgets(count=6):
+    """Generates dynamic Form Time widgets using a single Gemini batch API call."""
+    prompt = f"""
+    Create {count} distinct, highly engaging form-time activities for 16-year-old secondary students.
+    Return a list of JSON objects with these types:
+    1. Riddle (type: "🧩 Quick Riddle", title: question, answer: answer)
+    2. Joke (type: "😄 Classroom Joke", title: setup, answer: punchline)
+    3. Interesting Fact (type: "💡 Did You Know?", title: mind-blowing fact, answer: empty string)
+    4. Country Flag & Trivia (type: "🌐 Flag & Country Quiz", title: flag emoji + question, answer: country name + cool detail)
+    5. Math Problem (type: "🔢 60-Second Math Challenge", title: clever brain-teaser math problem, answer: solution)
+    6. Inspiring Quote (type: "💬 Quote of the Week", title: inspiring quote + author, answer: empty string)
+    """
+    try:
+        response = client.models.generate_content(
+            model="models/gemini-flash-latest",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema={
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "type": {"type": "STRING"},
+                            "title": {"type": "STRING"},
+                            "answer": {"type": "STRING"}
+                        },
+                        "required": ["type", "title", "answer"]
+                    }
+                }
+            )
+        )
+        widgets = json.loads(response.text)
+        for w in widgets:
+            w["is_widget"] = True
+        print(f"✅ Generated {len(widgets)} AI Form Time Widgets!")
+        return widgets
+    except Exception as e:
+        print(f"⚠️ Widget Generation Error: {e}")
+        # Smart fallback widgets in case API lags
+        return [
+            {"is_widget": True, "type": "🧩 Quick Riddle", "title": "What has to be broken before you can use it?", "answer": "An egg."},
+            {"is_widget": True, "type": "💡 Did You Know?", "title": "Honey never spoils. Organisms can't grow in it due to low moisture content.", "answer": ""},
+            {"is_widget": True, "type": "🔢 Math Challenge", "title": "If 3 cats catch 3 mice in 3 minutes, how many cats catch 100 mice in 100 minutes?", "answer": "3 cats! Every cat catches 1 mouse every 3 minutes."},
+            {"is_widget": True, "type": "🌐 Country Quiz", "title": "🇸🇬 Which country has a flag featuring a crescent moon and 5 white stars?", "answer": "Singapore! The 5 stars represent democracy, peace, progress, justice, and equality."}
+        ]
+
 def generate_smart_fallback_prompts(title, summary):
     text = f"{title} {summary}".lower()
     if any(k in text for k in ["ai", "tech", "data", "digital", "algorithm", "cyber", "device"]):
@@ -230,8 +278,12 @@ def generate_discussion_prompts(title, summary):
 
 def main():
     processed_items = []
+    
+    # Generate fresh AI Widgets before processing news
+    widgets = generate_ai_widgets(count=6)
+    widget_idx = 0
 
-    for feed_info in FEEDS:
+    for i, feed_info in enumerate(FEEDS):
         print(f"Fetching: {feed_info['category']}...")
         raw_xml = fetch_feed_data(feed_info["url"])
         if not raw_xml:
@@ -269,8 +321,14 @@ def main():
             "summary": cleaned_summary,
             "video_id": video_id,
             "image_url": image_url,
-            "prompts": prompts
+            "prompts": prompts,
+            "is_widget": False
         })
+
+        # Inject a fresh AI widget after every 3 news cards
+        if (i + 1) % 3 == 0 and widget_idx < len(widgets):
+            processed_items.append(widgets[widget_idx])
+            widget_idx += 1
 
     base_dir = Path(__file__).resolve().parent
     templates_dir = base_dir / "templates"
@@ -283,7 +341,7 @@ def main():
     with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         
-    print(f"Successfully rendered {len(processed_items)} items!")
+    print(f"Successfully rendered {len(processed_items)} total items (News + Form Time Widgets)!")
 
 if __name__ == "__main__":
     main()

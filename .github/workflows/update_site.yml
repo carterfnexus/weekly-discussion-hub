@@ -6,6 +6,12 @@ on:
     - cron: '0 0 * * 1'
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
+# Explicitly grant permissions needed to write back to the repository
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -35,7 +41,7 @@ jobs:
         run: |
           python generate_site.py
 
-      # Step 5: Commit and push updated index.html back to the repo
+      # Step 5: Commit and push updated index.html back to main branch
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"

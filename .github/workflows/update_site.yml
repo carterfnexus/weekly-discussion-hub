@@ -1,38 +1,44 @@
-name: Update Weekly Resource Hub
+name: Generate Discussion Hub & Form Time Wall
 
 on:
   schedule:
-    - cron: '0 22 * * 0' # Runs Sunday 10 PM UTC
-  workflow_dispatch: # Allows manual trigger from GitHub UI
-
-# Explicitly grant read/write permissions to GITHUB_TOKEN
-permissions:
-  contents: write
-  pages: write
-  id-token: write
+    # Runs every Monday at 00:00 UTC (8:00 AM Singapore Time)
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v4
 
+    steps:
+      # Step 1: Check out the repository using latest action version
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      # Step 2: Set up Python using latest action version
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+          cache: 'pip'
 
+      # Step 3: Install required Python dependencies
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai feedparser jinja2
 
-      - name: Run site generator
+      # Step 4: Run Python script to generate new index.html
+      - name: Generate site content
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python generate_site.py
+        run: |
+          python generate_site.py
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
+      # Step 5: Commit and push updated index.html back to the repo
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update discussion wall & form time widgets" && git push)

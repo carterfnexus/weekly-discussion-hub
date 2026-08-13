@@ -12,70 +12,91 @@
       to { opacity: 1; transform: translateY(0); }
     }
     .animate-fadeIn {
-      animation: fadeIn 0.2s ease-out forwards;
+      animation: fadeIn 0.25s ease-out forwards;
+    }
+
+    /* Vibrant Mesh / Polka Wallpaper Background */
+    .jazzy-bg {
+      background-color: #f1f5f9;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.15) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+        radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 20px 20px;
     }
   </style>
 </head>
-<body class="bg-slate-100 text-gray-800 font-sans antialiased min-h-screen">
+<body class="jazzy-bg text-gray-800 font-sans antialiased min-h-screen">
 
   <!-- Header Banner -->
-  <header class="bg-indigo-900 text-white shadow-md border-b border-indigo-700">
+  <header class="bg-gradient-to-r from-indigo-900 via-purple-900 to-slate-900 text-white shadow-xl border-b-4 border-amber-400">
     <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            🗣️ Form Time Discussion Wall
+          <h1 class="text-3xl sm:text-4xl font-black tracking-tight flex items-center gap-2">
+            🚀 Form Time Discussion Wall
           </h1>
-          <p class="text-indigo-200 text-xs sm:text-sm mt-0.5">
-            Weekly news starters, ethics dilemmas, and quick form-time brain teasers.
+          <p class="text-indigo-200 text-sm mt-1 font-medium">
+            Weekly news starters, ethics dilemmas, and interactive form-time brain teasers.
           </p>
         </div>
-        <div class="bg-indigo-800/80 backdrop-blur border border-indigo-600/50 rounded-lg px-3 py-1.5 text-xs text-indigo-100 self-start sm:self-auto">
-          <span class="block font-semibold">🔄 Auto-Updated Weekly</span>
+        <div class="bg-white/10 backdrop-blur border border-white/20 rounded-xl px-4 py-2 text-xs text-indigo-100 self-start sm:self-auto shadow-inner">
+          <span class="block font-bold text-amber-300">🔄 Auto-Updated Weekly</span>
         </div>
       </div>
     </div>
   </header>
 
   <!-- Main Feed 3-Column Wall Container -->
-  <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+  <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {% for item in items %}
         {% if item.is_widget %}
           
           <!-- ========================================== -->
-          <!-- FORM TIME WIDGET CARD (Compact Grid Tile)  -->
+          <!-- FORM TIME WIDGET CARD (Jazzy & Prominent)  -->
           <!-- ========================================== -->
-          <div class="bg-gradient-to-br from-indigo-50 via-white to-sky-50 border-2 border-indigo-200 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full">
+          <!-- Dynamic Background Rotation based on Loop Index -->
+          {% set bg_styles = [
+            "from-amber-50 via-orange-50 to-yellow-100 border-amber-300",
+            "from-purple-50 via-pink-50 to-rose-100 border-purple-300",
+            "from-emerald-50 via-teal-50 to-cyan-100 border-emerald-300",
+            "from-indigo-50 via-blue-50 to-sky-100 border-indigo-300"
+          ] %}
+          {% set current_bg = bg_styles[loop.index % 4] %}
+
+          <div class="bg-gradient-to-br {{ current_bg }} border-4 rounded-3xl p-6 sm:p-7 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full relative overflow-hidden">
             
             <div>
-              <!-- Widget Badge Header -->
-              <div class="flex items-center justify-between mb-2.5">
-                <span class="inline-flex items-center text-[10px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-100/90 px-2.5 py-1 rounded-full border border-indigo-200">
+              <!-- Large Centered Widget Badge -->
+              <div class="flex items-center justify-center mb-4">
+                <span class="inline-flex items-center text-xs sm:text-sm font-black uppercase tracking-widest text-indigo-900 bg-white/90 px-4 py-1.5 rounded-full border-2 border-indigo-200 shadow-sm">
                   {{ item.type }}
                 </span>
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Activity</span>
               </div>
 
-              <!-- Question / Prompt / Flag Quiz Title -->
-              <h3 class="text-sm sm:text-base font-bold text-gray-900 leading-snug">
+              <!-- Question / Prompt (Bigger Font) -->
+              <h3 class="text-xl sm:text-2xl font-black text-gray-900 text-center leading-snug tracking-tight my-2">
                 {{ item.title }}
               </h3>
             </div>
 
-            <!-- Interactive Answer Reveal Button -->
+            <!-- Big, Centered & Fun Interactive Reveal Button -->
             {% if item.answer %}
-              <details class="group mt-4">
-                <summary class="inline-flex items-center gap-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-all shadow-sm select-none">
-                  <span>Show Answer</span>
-                  <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              <details class="group mt-6 text-center">
+                <summary class="inline-flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 active:scale-95 text-white font-extrabold text-base sm:text-lg px-6 py-3.5 rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg select-none mx-auto w-full sm:w-auto">
+                  <span>✨ REVEAL ANSWER ✨</span>
+                  <svg class="w-5 h-5 transition-transform duration-300 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/>
                   </svg>
                 </summary>
                 
-                <div class="mt-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 font-medium text-xs sm:text-sm shadow-inner animate-fadeIn">
-                  <span class="font-bold text-emerald-800">🎯 Reveal:</span> {{ item.answer }}
+                <div class="mt-4 p-4 bg-white/95 border-2 border-emerald-400 rounded-2xl text-emerald-950 font-bold text-base sm:text-lg shadow-inner animate-fadeIn text-center">
+                  <span class="block text-xs font-black uppercase tracking-widest text-emerald-600 mb-1">🎯 Answer</span>
+                  {{ item.answer }}
                 </div>
               </details>
             {% endif %}
@@ -85,28 +106,28 @@
         {% else %}
 
           <!-- ========================================== -->
-          <!-- STANDARD NEWS / VIDEO CARD (Compact Grid)  -->
+          <!-- STANDARD NEWS / VIDEO CARD                -->
           <!-- ========================================== -->
-          <article class="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full">
+          <article class="bg-white/95 backdrop-blur border-2 border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full">
             
             <div>
               <!-- Category Badge -->
-              <div class="mb-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+              <div class="mb-3">
+                <span class="text-xs font-black uppercase tracking-wider text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
                   {{ item.category }}
                 </span>
               </div>
 
               <!-- Article Title -->
-              <h2 class="text-base font-bold text-gray-900 hover:text-indigo-600 transition-colors leading-snug">
+              <h2 class="text-lg sm:text-xl font-extrabold text-gray-900 hover:text-indigo-600 transition-colors leading-snug">
                 <a href="{{ item.link }}" target="_blank" rel="noopener noreferrer">
                   {{ item.title }}
                 </a>
               </h2>
 
-              <!-- Video Embed OR Media Thumbnail -->
+              <!-- Media Frame -->
               {% if item.video_id %}
-                <div class="mt-3 aspect-video rounded-lg overflow-hidden bg-black shadow-inner">
+                <div class="mt-4 aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border border-gray-800">
                   <iframe 
                     class="w-full h-full" 
                     src="https://www.youtube.com/embed/{{ item.video_id }}" 
@@ -117,28 +138,28 @@
                   </iframe>
                 </div>
               {% elif item.image_url %}
-                <div class="mt-3 h-36 rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
+                <div class="mt-4 h-40 rounded-2xl overflow-hidden bg-gray-100 border border-gray-100">
                   <img src="{{ item.image_url }}" alt="{{ item.title }}" class="w-full h-full object-cover">
                 </div>
               {% endif %}
 
               <!-- Summary Snippet -->
-              <p class="text-gray-600 text-xs sm:text-sm mt-2.5 line-clamp-3 leading-relaxed">
+              <p class="text-gray-600 text-sm mt-3 line-clamp-3 leading-relaxed">
                 {{ item.summary }}
               </p>
             </div>
 
             <div>
               <!-- Gemini Discussion Starter Box -->
-              <div class="mt-3.5 bg-amber-50/90 border-l-3 border-amber-400 p-3 rounded-r-lg border border-amber-200/60">
+              <div class="mt-4 bg-amber-50/90 border-l-4 border-amber-400 p-3.5 rounded-r-2xl border border-amber-200/80">
                 <div class="flex items-center gap-1.5 mb-1.5">
-                  <span class="text-xs">💡</span>
-                  <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-900">
+                  <span class="text-sm">💡</span>
+                  <h4 class="text-xs font-black uppercase tracking-wider text-amber-900">
                     Discussion Starters
                   </h4>
                 </div>
                 
-                <ul class="space-y-1.5 text-xs text-gray-800">
+                <ul class="space-y-1.5 text-xs text-gray-800 font-medium">
                   {% for prompt in item.prompts %}
                     <li class="flex items-start gap-1.5">
                       <span class="text-amber-500 font-bold select-none">•</span>
@@ -149,10 +170,10 @@
               </div>
 
               <!-- Source Link -->
-              <div class="mt-2.5 text-right">
-                <a href="{{ item.link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline">
+              <div class="mt-3 text-right">
+                <a href="{{ item.link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline">
                   <span>Read source</span>
-                  <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                   </svg>
                 </a>
@@ -168,9 +189,9 @@
   </main>
 
   <!-- Footer -->
-  <footer class="bg-white border-t border-gray-200 py-6 mt-10">
-    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500">
-      <p>Automated Classroom Discussion & Form Time Resource for Educators.</p>
+  <footer class="bg-white/80 backdrop-blur border-t border-slate-200 py-6 mt-12">
+    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500 font-medium">
+      <p>Automated Classroom Discussion & Form Time Wall for Educators.</p>
     </div>
   </footer>
 

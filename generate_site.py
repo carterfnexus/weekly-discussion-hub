@@ -2,7 +2,6 @@ import os
 import re
 import json
 import time
-import random
 from pathlib import Path
 import urllib.request
 import feedparser
@@ -12,6 +11,26 @@ from jinja2 import Environment, FileSystemLoader
 
 # Initialize Gemini Client using environment variable
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+# Standard Safety Threshold Settings for Classroom Content
+SAFETY_SETTINGS = [
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+    ),
+]
 
 FEEDS = [
     # --- Youth & Classroom Current Affairs ---
@@ -170,10 +189,57 @@ def extract_image_url(entry, raw_summary):
 
     return None
 
-def generate_ai_widgets(count=6):
-    """Generates dynamic Form Time widgets using a single Gemini batch API call."""
+def is_age_appropriate(title, summary):
+    """Failsafe moderation check to ensure content is suitable for 16 & under."""
+    # Fast regex filter for explicit keywords
+    blacklisted_terms = [
+        r"\bporn\b", r"\bexplicit\b", r"\bgore\b", r"\bsuicide\b", 
+        r"\bnsfw\b", r"\bgraphic violence\b", r"\bsexual assault\b"
+    ]
+    combined_text = f"{title} {summary}".lower()
+    for term in blacklisted_terms:
+        if re.search(term, combined_text):
+            print(f"🚫 Failsafe Triggered: Keyword match '{term}' for item: {title[:30]}")
+            return False
+
+    # AI Moderation Check
     prompt = f"""
-    Create {count} distinct, highly engaging form-time activities for 16-year-old secondary students.
+    You are a strict secondary school content filter evaluating news for students aged 16 and under (Year 11 / High School).
+
+    Title: {title}
+    Summary: {summary}
+
+    Is this topic appropriate for discussion in a 16-and-under classroom setting? 
+    Reject if it contains graphic violence, explicit sexual content, self-harm, or gratuitous gore.
+    Political, economic, scientific, and ethical news debates ARE appropriate.
+
+    Return JSON: {{"appropriate": true}} or {{"appropriate": false}}
+    """
+    try:
+        response = client.models.generate_content(
+            model="models/gemini-flash-latest",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                safety_settings=SAFETY_SETTINGS,
+                response_schema={
+                    "type": "OBJECT",
+                    "properties": {
+                        "appropriate": {"type": "BOOLEAN"}
+                    },
+                    "required": ["appropriate"]
+                }
+            )
+        )
+        data = json.loads(response.text)
+        return data.get("appropriate", True)
+    except Exception as e:
+        print(f"⚠️ Moderation API Check failed, defaulting to basic filter: {e}")
+        return True
+
+def generate_ai_widgets(count=6):
+    prompt = f"""
+    Create {count} distinct, highly engaging form-time activities strictly appropriate for 16-year-old secondary students.
     Return a list of JSON objects with these types:
     1. Riddle (type: "🧩 Quick Riddle", title: question, answer: answer)
     2. Joke (type: "😄 Classroom Joke", title: setup, answer: punchline)
@@ -188,6 +254,7 @@ def generate_ai_widgets(count=6):
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
+                safety_settings=SAFETY_SETTINGS,
                 response_schema={
                     "type": "ARRAY",
                     "items": {
@@ -205,11 +272,10 @@ def generate_ai_widgets(count=6):
         widgets = json.loads(response.text)
         for w in widgets:
             w["is_widget"] = True
-        print(f"✅ Generated {len(widgets)} AI Form Time Widgets!")
+        print(f"✅ Generated {len(widgets)} Safe AI Form Time Widgets!")
         return widgets
     except Exception as e:
         print(f"⚠️ Widget Generation Error: {e}")
-        # Smart fallback widgets in case API lags
         return [
             {"is_widget": True, "type": "🧩 Quick Riddle", "title": "What has to be broken before you can use it?", "answer": "An egg."},
             {"is_widget": True, "type": "💡 Did You Know?", "title": "Honey never spoils. Organisms can't grow in it due to low moisture content.", "answer": ""},
@@ -258,6 +324,7 @@ def generate_discussion_prompts(title, summary):
             contents=prompt_text,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
+                safety_settings=SAFETY_SETTINGS,
                 response_schema={
                     "type": "OBJECT",
                     "properties": {
@@ -279,7 +346,7 @@ def generate_discussion_prompts(title, summary):
 def main():
     processed_items = []
     
-    # Generate fresh AI Widgets before processing news
+    # Generate safe AI Widgets
     widgets = generate_ai_widgets(count=6)
     widget_idx = 0
 
@@ -309,10 +376,16 @@ def main():
         cleaned_summary = re.sub('<[^<]+?>', '', raw_summary).strip()
         cleaned_summary = (cleaned_summary[:200] + '...') if len(cleaned_summary) > 200 else cleaned_summary
         
+        # -------------------------------------------------------------
+        # FAILSAFE CHECK: Skip any item flagged as inappropriate for <=16
+        # -------------------------------------------------------------
+        if not is_age_appropriate(title, cleaned_summary):
+            print(f"⚠️ Skipping inappropriate content: {title[:40]}...")
+            continue
+
         prompts = generate_discussion_prompts(title, cleaned_summary)
         
-        # Pacing delay (4s) to keep free-tier rate limits safe
-        time.sleep(4)
+        time.sleep(4) # Rate-limit pacing delay
 
         processed_items.append({
             "category": feed_info["category"],
@@ -325,7 +398,7 @@ def main():
             "is_widget": False
         })
 
-        # Inject a fresh AI widget after every 3 news cards
+        # Inject a safe AI widget after every 3 news cards
         if (i + 1) % 3 == 0 and widget_idx < len(widgets):
             processed_items.append(widgets[widget_idx])
             widget_idx += 1
@@ -341,7 +414,7 @@ def main():
     with open(base_dir / "index.html", "w", encoding="utf-8") as f:
         f.write(output_html)
         
-    print(f"Successfully rendered {len(processed_items)} total items (News + Form Time Widgets)!")
+    print(f"Successfully rendered {len(processed_items)} age-appropriate items!")
 
 if __name__ == "__main__":
     main()
